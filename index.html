@@ -59,6 +59,12 @@
   .same:disabled{opacity:.25;cursor:default}
   .lunch{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line);background:repeating-linear-gradient(135deg,#f5f7f8,#f5f7f8 8px,#eef2f4 8px,#eef2f4 16px);color:var(--muted);font-size:14px}
   .lunch .time{padding:0}
+  .fold{display:flex;align-items:center;gap:10px;width:100%;border:0;border-top:1px solid var(--line);background:#f7fafb;color:var(--teal);font-weight:600;font-size:14px;padding:11px 14px;text-align:left}
+  .fold:first-child{border-top:0}
+  .fold span:first-child{flex:1}
+  .fold small{color:var(--muted);font-weight:500}
+  .fold .chev{transition:transform .15s}
+  .fold.open .chev{transform:rotate(180deg)}
   .leave{padding:28px 16px;text-align:center;color:var(--muted)}
   .leave b{display:block;color:var(--ink);font-size:18px;margin-bottom:4px}
   .blk{margin-top:12px;padding:12px;border-color:#f1d3bd;background:#fffaf5}
@@ -240,16 +246,27 @@
   var tab = 'log';
 
   function blank() {
-    var s = []; for (var i = 0; i < nSlots(); i++) s.push('');
-    return { type: S.lastType && S.lastType !== 'Leave' ? S.lastType : 'Office', slots: s, summary: '', state: 'new' };
+    return { type: S.lastType && S.lastType !== 'Leave' ? S.lastType : 'Office', map: {}, summary: '', state: 'new' };
   }
-  function entry(d) { return S.entries[d] || null; }
+  function entry(d) { var e = S.entries[d]; if (e) normalize(e); return e || null; }
   function viewEntry() { return entry(cur) || blank(); }
-  function filledCount(e) { var c = 0; cfg().slots.forEach(function (s, i) { if (!s.lunch && (e.slots[i] || '').trim()) c++; }); return c; }
-  function workSlots() { return cfg().slots.filter(function (s) { return !s.lunch; }).length; }
+  // Slots are stored by start time ("09:30"), so entries stay correct even if the slot layout changes.
+  function normalize(e) {
+    if (e.map) return e;
+    e.map = {};
+    (e.slots || []).forEach(function (v, i) { if (v && v !== 'Lunch') { var m = 540 + 30 * i; e.map[pad(Math.floor(m / 60)) + ':' + pad(m % 60)] = v; } });
+    delete e.slots; return e;
+  }
+  function sv(e, i) { var s = cfg().slots[i]; return s ? ((e.map || {})[s.start] || '') : ''; }
+  function setSv(e, i, v) { var k = cfg().slots[i].start; e.map = e.map || {}; if (v) e.map[k] = v; else delete e.map[k]; }
+  function filledCount(e) { var c = 0; cfg().slots.forEach(function (s, i) { if (!s.lunch && sv(e, i).trim()) c++; }); return c; }
+  function coreSlots() { return cfg().slots.filter(function (s) { return !s.lunch && isCore(s); }).length; }
+  function isCore(s) { return s.core !== undefined ? s.core : (s.start >= (cfg().coreStart || '09:00') && s.start < (cfg().coreEnd || '17:30')); }
+  function groupOf(s) { return isCore(s) || s.lunch ? 'core' : (s.start < (cfg().coreStart || '09:00') ? 'early' : 'late'); }
+  var openGroups = {};
 
   function touch(mut) {
-    var e = S.entries[cur] || (S.entries[cur] = blank());
+    var e = entry(cur) || (S.entries[cur] = blank());
     mut(e);
     e.state = 'draft';
     e.editedAt = Date.now();
@@ -302,7 +319,25 @@
       return;
     }
     var sl = cfg().slots, i = 0;
+    var groups = { early: [], late: [] };
+    sl.forEach(function (s, k) { var g = groupOf(s); if (g !== 'core') groups[g].push(k); });
+    ['early', 'late'].forEach(function (g) {
+      if (openGroups[g + cur] === undefined) openGroups[g + cur] = groups[g].some(function (k) { return sv(e, k).trim(); });
+    });
+    function fold(g) {
+      var ks = groups[g]; if (!ks.length) return;
+      var first = sl[ks[0]], last = sl[ks[ks.length - 1]], open = openGroups[g + cur];
+      var n = ks.filter(function (k) { return sv(e, k).trim(); }).length;
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'fold' + (open ? ' open' : '');
+      b.innerHTML = '<span>' + (g === 'early' ? 'Earlier' : 'Later') + ' slots <small>' + clock(first.start) + ' – ' + clock(last.end) + (n ? ' · ' + n + ' filled' : '') + '</small></span><span class="chev">▾</span>';
+      b.onclick = function () { openGroups[g + cur] = !open; renderSlots(); refreshSameButtons(); };
+      box.appendChild(b);
+    }
+    var lastGroup = null;
     while (i < sl.length) {
+      var g = groupOf(sl[i]);
+      if (g !== lastGroup) { if (g !== 'core') fold(g); lastGroup = g; }
+      if (g !== 'core' && !openGroups[g + cur]) { i++; continue; }
       if (sl[i].lunch) {
         var j = i; while (j + 1 < sl.length && sl[j + 1].lunch) j++;
         var l = document.createElement('div'); l.className = 'lunch';
@@ -319,14 +354,14 @@
 
   function slotRow(i, e) {
     var s = cfg().slots[i];
-    var row = document.createElement('div'); row.className = 'slot' + ((e.slots[i] || '').trim() ? ' filled' : ''); row.dataset.i = i;
+    var row = document.createElement('div'); row.className = 'slot' + (sv(e, i).trim() ? ' filled' : ''); row.dataset.i = i;
     row.innerHTML = '<div class="time"><b>' + clock(s.start) + '</b><small>' + clock(s.end) + '</small></div>';
-    var ta = document.createElement('textarea'); ta.rows = 1; ta.value = e.slots[i] || '';
-    ta.placeholder = i === 0 ? 'What did you work on?' : '';
+    var ta = document.createElement('textarea'); ta.rows = 1; ta.value = sv(e, i);
+    ta.placeholder = s.start === (cfg().coreStart || '09:00') ? 'What did you work on?' : '';
     ta.setAttribute('aria-label', 'Work from ' + clock(s.start) + ' to ' + clock(s.end));
     ta.oninput = function () {
       autosize(ta);
-      touch(function (x) { x.slots[i] = ta.value; });
+      touch(function (x) { setSv(x, i, ta.value); });
       row.classList.toggle('filled', !!ta.value.trim());
       refreshSameButtons(); renderNotice(); renderBar();
     };
@@ -342,7 +377,7 @@
     b.innerHTML = '↑<br>same'; b.title = 'Same as the slot above';
     b.onclick = function () {
       var p = prevWorkIdx(i); if (p < 0) return;
-      var v = viewEntry().slots[p] || ''; if (!v.trim()) return;
+      var v = sv(viewEntry(), p); if (!v.trim()) return;
       ta.value = v; ta.oninput();
       var n = nextWorkIdx(i); var nx = n >= 0 && document.querySelector('.slot[data-i="' + n + '"] .same');
       if (nx) nx.focus();
@@ -355,7 +390,7 @@
     var e = viewEntry();
     document.querySelectorAll('.slot').forEach(function (r) {
       var i = +r.dataset.i, p = prevWorkIdx(i);
-      r.querySelector('.same').disabled = p < 0 || !(e.slots[p] || '').trim();
+      r.querySelector('.same').disabled = p < 0 || !sv(e, p).trim();
     });
   }
 
@@ -377,8 +412,8 @@
     $('bar').hidden = false;
     if (e.type === 'Leave') { prog.innerHTML = '<b>Leave</b><div>No slots needed</div>'; }
     else {
-      var f = filledCount(e), w = workSlots();
-      prog.innerHTML = '<b>' + (f / 2) + ' h</b> logged · ' + f + ' of ' + w + ' slots<div class="meter"><i style="width:' + Math.round(100 * f / w) + '%"></i></div>';
+      var f = filledCount(e), w = coreSlots();
+      prog.innerHTML = '<b>' + (f / 2) + ' h</b> logged · ' + f + ' slot' + (f === 1 ? '' : 's') + '<div class="meter"><i style="width:' + Math.min(100, Math.round(100 * f / w)) + '%"></i></div>';
     }
     var st = entry(cur) ? entry(cur).state : 'new';
     btn.disabled = st === 'pending' && syncing;
@@ -404,9 +439,10 @@
     api('get', { date: d }).then(function (r) {
       var now = entry(asked);
       if (now && now.state !== 'synced' && now.state !== 'error') return; // user started typing meanwhile
-      if (r.entry) { S.entries[asked] = { type: r.entry.type, slots: r.entry.slots, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
+      if (r.entry) { S.entries[asked] = { type: r.entry.type, map: r.entry.map || {}, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
       else if (now && now.state === 'synced') delete S.entries[asked];
       persist();
+      delete openGroups['early' + asked]; delete openGroups['late' + asked];
       if (cur === asked && tab === 'log') renderLog();
     }).catch(function () {});
   }
@@ -434,8 +470,8 @@
     dates.forEach(function (d) {
       chain = chain.then(function () {
         if (stop) return;
-        var e = S.entries[d], sentEdit = e.editedAt;
-        return api('save', { entry: { date: d, type: e.type, slots: e.slots, summary: e.summary } }).then(function (r) {
+        var e = normalize(S.entries[d]), sentEdit = e.editedAt;
+        return api('save', { entry: { date: d, type: e.type, map: e.map, summary: e.summary } }).then(function (r) {
           var now = S.entries[d];
           if (now && now.editedAt === sentEdit) { now.state = 'synced'; now.updatedAt = r.updatedAt; now.hours = r.hours; delete now.error; }
           sentOk++;
@@ -491,7 +527,10 @@
       else badge = '<span class="badge b-miss">Not logged</span>';
       if (src) {
         if (src.type === 'Leave') snippet = 'On leave';
-        else { var first = (src.slots || []).filter(function (s) { return s && s.trim() && s !== 'Lunch'; }); snippet = src.type + (first.length ? ' · ' + first[0] : ''); }
+        else {
+          var mp = src.map || {}, ks = Object.keys(mp).sort(), first = ks.length ? mp[ks.filter(function (k) { return k >= (cfg().coreStart || '09:00'); })[0] || ks[0]] : '';
+          snippet = src.type + (first ? ' · ' + first : '');
+        }
         if (src.summary) snippet = '⚑ ' + src.summary;
       }
       if (srv || (loc && loc.state === 'synced')) { var xx = srv || loc; logged++; hours += xx.hours != null ? Number(xx.hours) : filledCount(xx) / 2; }
