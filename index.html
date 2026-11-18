@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f4c5c">
 <title>QInsight Daily Log</title>
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.webmanifest" id="mf">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="QInsight Log">
+<script>/* iPhone/iPad: Add to Home Screen must start at the personal link, so drop the generic manifest there */
+window.QTS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (window.QTS_IOS) { var mf = document.getElementById('mf'); if (mf) mf.parentNode.removeChild(mf); }</script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="config.js"></script>
@@ -29,6 +35,9 @@
   .pill i{width:8px;height:8px;border-radius:50%;background:#8fe3bd;display:inline-block}
   .pill.warn i{background:#ffd166} .pill.off i{background:#ff8a7a}
   .install{border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:99px;padding:5px 10px;font-size:13px}
+  .ios{position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:8;background:#1d2a35;color:#fff;border-radius:14px;padding:14px 16px;font-size:15px;line-height:1.45;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .ios b{color:#ffd166}
+  .ios button{float:right;margin:-4px -6px 0 8px;border:0;background:transparent;color:#fff;font-size:20px;line-height:1}
   .tabs{display:flex;gap:4px;margin-top:10px}
   .tabs button{flex:1;border:0;background:transparent;color:rgba(255,255,255,.75);padding:9px 0 10px;font-weight:600;border-bottom:3px solid transparent}
   .tabs button.on{color:#fff;border-bottom-color:var(--orange)}
@@ -179,6 +188,7 @@
   <p id="gateMsg"></p>
 </div>
 <div id="toast"></div>
+<div class="ios" id="iosTip" hidden><button type="button" id="iosX" aria-label="Close">×</button><b>Install on your iPhone:</b> tap the <b>Share</b> button (square with an arrow ⬆︎) in Safari, then <b>Add to Home Screen</b>. Open it from the new QInsight Log icon from then on.</div>
 
 <script>
 (function () {
@@ -241,7 +251,7 @@
   if (t) {
     if (S.token && S.token !== t) { S.prevProfileId = S.profile && S.profile.id; S.profile = null; }
     S.token = t; persist();
-    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    if (!window.QTS_IOS) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
   }
 
   function gate(title, msg) { $('app').hidden = true; $('gate').hidden = false; $('gateTitle').textContent = title; $('gateMsg').textContent = msg; }
@@ -735,6 +745,17 @@
   $('installBtn').onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.finally(function () { deferred = null; $('installBtn').hidden = true; }); };
   window.addEventListener('appinstalled', function () { $('installBtn').hidden = true; toast('Installed! Find "QInsight Log" on your home screen.'); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {});
+  // iPhone/iPad: keep the personal link in the address (the Home Screen icon opens exactly this address) and show how to install
+  var iosStandalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  if (window.QTS_IOS && S.token) {
+    if (new URLSearchParams(location.search).get('t') !== S.token) { try { history.replaceState(null, '', location.pathname + '?t=' + encodeURIComponent(S.token)); } catch (e) {} }
+    if (!iosStandalone) {
+      $('installBtn').hidden = false; $('installBtn').textContent = 'Add to Home';
+      $('installBtn').onclick = function () { $('iosTip').hidden = false; };
+      if (!S.iosTipSeen) { S.iosTipSeen = true; persist(); setTimeout(function () { $('iosTip').hidden = false; }, 1500); }
+    }
+  }
+  $('iosX').onclick = function () { $('iosTip').hidden = true; };
 
   boot();
 })();
