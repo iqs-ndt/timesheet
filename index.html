@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 <title>QInsight Daily Log</title>
-<link rel="manifest" href="manifest.webmanifest" id="mf">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="QInsight Log">
-<script>/* iPhone/iPad: Add to Home Screen must start at the personal link, so drop the generic manifest there */
+<script>/* iPhone/iPad: the Home Screen icon must open the personal link itself, so iOS never sees the generic manifest.
+   Android and laptops get the manifest (it makes the app installable there). */
 window.QTS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-if (window.QTS_IOS) { var mf = document.getElementById('mf'); if (mf) mf.parentNode.removeChild(mf); }</script>
+if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmanifest" id="mf">');</script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="config.js"></script>
@@ -177,6 +177,13 @@ if (window.QTS_IOS) { var mf = document.getElementById('mf'); if (mf) mf.parentN
   .histhead b{color:var(--navy)}
   .gate .brand{height:52px;margin:0 auto 22px}
   .gate h2{color:var(--navy)}
+  .paste{max-width:420px;margin:6px auto 0;text-align:left}
+  .paste input{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;font-size:15px;background:#fff}
+  .paste input:focus{outline:none;border-color:var(--teal2)}
+  .paste .row{display:flex;gap:8px;margin-top:10px}
+  .paste button{flex:1;border:0;border-radius:10px;padding:12px;font:inherit;font-weight:700;font-size:15px;background:var(--navy);color:#fff}
+  .paste button.alt{background:#eef2f6;color:var(--navy)}
+  .paste p{font-size:13px;color:var(--muted);margin:12px 0 0}
 </style>
 </head>
 <body>
@@ -230,6 +237,11 @@ if (window.QTS_IOS) { var mf = document.getElementById('mf'); if (mf) mf.parentN
   <img class="brand" src="logo.png" alt="QInsight Consol Pvt Ltd">
   <h2 id="gateTitle">QInsight Daily Log</h2>
   <p id="gateMsg"></p>
+  <div class="paste" id="pasteBox" hidden>
+    <input id="pasteIn" type="url" inputmode="url" autocomplete="off" placeholder="Paste your personal link here">
+    <div class="row"><button type="button" class="alt" id="pasteClip">Paste</button><button type="button" id="pasteGo">Open my timesheet</button></div>
+    <p id="pasteHelp">Find the link in the email or WhatsApp from your admin. Press and hold it, choose <b>Copy</b> (or <b>Copy Link</b>), then come back here and tap <b>Paste</b>. You only need to do this once.</p>
+  </div>
 </div>
 <div id="toast"></div>
 <div class="ios" id="iosTip" hidden><button type="button" id="iosX" aria-label="Close">×</button><b>Install on your iPhone:</b> tap the <b>Share</b> button (square with an arrow ⬆︎) in Safari, then <b>Add to Home Screen</b>. Open it from the new QInsight Log icon from then on.</div>
@@ -298,8 +310,26 @@ if (window.QTS_IOS) { var mf = document.getElementById('mf'); if (mf) mf.parentN
     if (!window.QTS_IOS) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
   }
 
-  function gate(title, msg) { $('app').hidden = true; $('gate').hidden = false; $('gateTitle').textContent = title; $('gateMsg').textContent = msg; }
-  function lockOut(msg) { S.profile = null; persist(); gate('Link not active', msg); }
+  function gate(title, msg) { $('app').hidden = true; $('gate').hidden = false; $('gateTitle').textContent = title; $('gateMsg').textContent = msg; $('pasteBox').hidden = true; }
+  function lockOut(msg) { S.profile = null; persist(); gate('Link not active', msg); askLink(); }
+  // No link on this device yet (e.g. an iPhone Home Screen icon, which has its own storage): let the person paste it once.
+  function askLink() { $('pasteBox').hidden = false; }
+  function tokenFrom(s) { s = String(s || '').trim(); var m = s.match(/[?&#]t=([A-Za-z0-9]{16,64})/); if (m) return m[1]; return /^[A-Za-z0-9]{16,64}$/.test(s) ? s : ''; }
+  function useLink(raw) {
+    var tk = tokenFrom(raw);
+    if (!tk) { toast('That does not look like your timesheet link. Copy the whole link and try again.'); return; }
+    if (S.token && S.token !== tk) { S.prevProfileId = S.profile && S.profile.id; S.profile = null; }
+    S.token = tk; persist();
+    if (window.QTS_IOS) { try { history.replaceState(null, '', location.pathname + '?t=' + encodeURIComponent(tk)); } catch (e) {} }
+    boot();
+  }
+  $('pasteGo').onclick = function () { useLink($('pasteIn').value); };
+  $('pasteIn').onkeydown = function (ev) { if (ev.key === 'Enter') useLink(this.value); };
+  $('pasteClip').onclick = function () {
+    if (!navigator.clipboard || !navigator.clipboard.readText) { $('pasteIn').focus(); toast('Press and hold the box, then choose Paste.'); return; }
+    navigator.clipboard.readText().then(function (txt) { $('pasteIn').value = txt; if (tokenFrom(txt)) useLink(txt); else toast('The copied text is not a timesheet link.'); })
+      .catch(function () { $('pasteIn').focus(); toast('Press and hold the box, then choose Paste.'); });
+  };
 
   function hello() {
     return api('hello').then(function (r) {
@@ -311,7 +341,7 @@ if (window.QTS_IOS) { var mf = document.getElementById('mf'); if (mf) mf.parentN
   }
 
   function boot() {
-    if (!S.token) return gate('Open your personal link', 'Please open the personal timesheet link your admin sent you (by email or WhatsApp). After that, you can install it as an app.');
+    if (!S.token) { gate('Open your personal link', 'Open the personal timesheet link your admin sent you (by email or WhatsApp), or paste it below.'); askLink(); return; }
     if (S.profile && S.config) { start(); hello().then(renderHeader).catch(function () {}); return; }
     gate('Setting up…', 'Connecting to QInsight…');
     hello().then(start).catch(function (e) {
