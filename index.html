@@ -49,8 +49,14 @@
   .slots{overflow:hidden}
   .slot{display:flex;align-items:flex-start;gap:10px;padding:8px 8px 8px 12px;border-top:1px solid var(--line)}
   .slot:first-child{border-top:0}
-  .time{width:46px;flex:none;padding-top:9px;text-align:right}
-  .time b{display:block;font-size:15px}
+  .time{width:58px;flex:none;padding-top:9px;text-align:right}
+  .time b{display:block;font-size:14px;white-space:nowrap}
+  .time small{white-space:nowrap}
+  .time em{display:block;font-style:normal;font-size:11px;color:var(--orange);font-weight:600;white-space:nowrap}
+  .slot.nt textarea{background:#f1f3f8}
+  .fold.nt{background:#eef0f7;color:#1f2f4a}
+  .offsel{display:block;margin:12px auto 10px;font-weight:600;color:var(--ink)}
+  .offsel select{font:inherit;font-weight:700;font-size:16px;margin-left:8px;padding:8px 10px;border:1px solid var(--teal2);border-radius:10px;background:#fff;color:var(--teal)}
   .time small{display:block;color:var(--muted);font-size:12px}
   .slot textarea{flex:1;min-width:0;border:1px solid transparent;background:#f6f9fa;border-radius:10px;padding:10px 11px;font:inherit;font-size:15px;resize:none;min-height:42px;overflow:hidden;color:var(--ink)}
   .slot textarea:focus{outline:none;border-color:var(--teal2);background:#fff}
@@ -196,7 +202,7 @@
   function addDays(s, n) { var d = new Date((dnum(s) + n) * 864e5); return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()); }
   function wday(s) { return new Date(dnum(s) * 864e5).getUTCDay(); }
   function pretty(s, long) { var p = s.split('-'); return DAYS[wday(s)].slice(0, 3) + ', ' + (+p[2]) + ' ' + MON[+p[1] - 1] + (long ? ' ' + p[0] : ''); }
-  function clock(hhmm) { var p = hhmm.split(':'), h = +p[0] % 12 || 12; return h + ':' + p[1]; }
+  function clock(hhmm) { var p = hhmm.split(':'), H = +p[0], h = H % 12 || 12; return h + (p[1] !== '00' ? ':' + p[1] : '') + (H < 12 ? ' am' : ' pm'); }
   function stamp(iso) {
     if (!iso) return ''; var d = new Date(iso); if (isNaN(d)) return '';
     var h = d.getHours() % 12 || 12;
@@ -206,7 +212,7 @@
   function minDay() { return addDays(today(), -cfg().editWindowDays); }
 
   // ---------- config ----------
-  var DEFAULT_CFG = { slots: [], dayTypes: ['Office','Site','WFH','Travel','Leave / Comp Off'], leaveType: 'Leave / Comp Off', invoiceTypes: ['Site','Travel'], lunch: { start: '13:00', minutes: 45, earliest: '11:00', latest: '16:15', step: 15 }, editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
+  var DEFAULT_CFG = { slots: [], slotMinutes: 120, dayTypes: ['Office','Site','WFH','Travel','Leave','Comp Off'], offTypes: ['Leave','Comp Off'], nightTypes: ['Site','Travel'], invoiceTypes: ['Site','Travel'], lunch: { start: '13:00', minutes: 30, earliest: '11:00', latest: '16:30', step: 15 }, editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
   function cfg() { return S.config || DEFAULT_CFG; }
   function nSlots() { return cfg().slots.length; }
 
@@ -265,37 +271,64 @@
   var tab = 'log';
 
   function blank() {
-    return { type: S.lastType && !isLeave(S.lastType) ? S.lastType : 'Office', map: {}, summary: '', state: 'new' };
+    return { type: S.lastType && !isOff(S.lastType) ? S.lastType : 'Office', map: {}, summary: '', state: 'new' };
   }
   function entry(d) { var e = S.entries[d]; if (e) normalize(e); return e || null; }
   function viewEntry() { return entry(cur) || blank(); }
-  // Slots are stored by start time ("09:30"), so entries stay correct even if the slot layout changes.
+  // Slots are stored by start time ("09:00"); entries saved under an older slot layout are merged into the slot they fall in.
   function normalize(e) {
-    if (isLeave(e.type) && e.type !== leaveType()) e.type = leaveType();
-    if (e.map) return e;
-    e.map = {};
-    (e.slots || []).forEach(function (v, i) { if (v && v !== 'Lunch') { var m = 540 + 30 * i; e.map[pad(Math.floor(m / 60)) + ':' + pad(m % 60)] = v; } });
-    delete e.slots; return e;
+    e.type = normType(e.type);
+    if (!e.map) {
+      e.map = {};
+      (e.slots || []).forEach(function (v, i) { if (v && v !== 'Lunch') { var m = 540 + 30 * i; e.map[pad(Math.floor(m / 60)) + ':' + pad(m % 60)] = v; } });
+      delete e.slots;
+    }
+    var sl = cfg().slots, starts = {};
+    sl.forEach(function (s) { starts[s.start] = 1; });
+    if (sl.length && Object.keys(e.map).some(function (k) { return !starts[k]; })) {
+      var nm = {};
+      Object.keys(e.map).sort(function (a, b) { return posOf(a) - posOf(b); }).forEach(function (k) {
+        var i = slotIdxOf(k), v = String(e.map[k] || '').trim(); if (i < 0 || !v) return;
+        var st = sl[i].start;
+        nm[st] = nm[st] ? (nm[st].split(' / ').indexOf(v) >= 0 ? nm[st] : nm[st] + ' / ' + v) : v;
+      });
+      e.map = nm;
+    }
+    return e;
   }
   function sv(e, i) { var s = cfg().slots[i]; return s ? ((e.map || {})[s.start] || '') : ''; }
   function setSv(e, i, v) { var k = cfg().slots[i].start; e.map = e.map || {}; if (v) e.map[k] = v; else delete e.map[k]; }
-  // ----- lunch (movable, default 45 min) -----
-  function LC() { var l = cfg().lunch || {}; return { start: l.start || '13:00', minutes: l.minutes || 45, earliest: l.earliest || '11:00', latest: l.latest || '16:15', step: l.step || 15 }; }
+  // ----- slot geometry (the log day runs 7 am → 7 am, 2-hour slots) -----
+  function SMin(i) { var s = cfg().slots[i]; return (s && s.minutes) || cfg().slotMinutes || 30; }
+  function gridStart() { return cfg().slots.length ? mins(cfg().slots[0].start) : 420; }
+  function posOf(t) { return (mins(t) - gridStart() + 1440) % 1440; }
+  function slotIdxOf(t) { var p = posOf(t), sl = cfg().slots; for (var i = 0; i < sl.length; i++) { var a = posOf(sl[i].start); if (p >= a && p < a + SMin(i)) return i; } return -1; }
+  // ----- lunch (movable, default 30 min) -----
+  function LC() { var l = cfg().lunch || {}; return { start: l.start || '13:00', minutes: l.minutes || 30, earliest: l.earliest || '11:00', latest: l.latest || '16:30', step: l.step || 15 }; }
   function mins(t) { var p = String(t).split(':'); return +p[0] * 60 + +p[1]; }
-  function hm(m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
+  function hm(m) { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
   function lunchOf(e) { return (e && e.lunch) || LC().start; }
-  function lunchOverlap(e, i) { var a = mins(cfg().slots[i].start), L = mins(lunchOf(e)), E = L + LC().minutes; return Math.max(0, Math.min(a + 30, E) - Math.max(a, L)); }
-  function covered(e, i) { return lunchOverlap(e, i) >= 30; }
-  function workMinutes(e) { var t = 0; cfg().slots.forEach(function (s, i) { if (!covered(e, i) && sv(e, i).trim()) t += 30 - lunchOverlap(e, i); }); return t; }
+  function lunchOverlap(e, i) { var a = mins(cfg().slots[i].start), L = mins(lunchOf(e)), E = L + LC().minutes; return Math.max(0, Math.min(a + SMin(i), E) - Math.max(a, L)); }
+  function covered(e, i) { return lunchOverlap(e, i) >= SMin(i); }
+  function shown(e, i) { var s = cfg().slots[i]; return !(s && s.night) || isNight(e.type); }
+  function counts(e, i) { return shown(e, i) && !covered(e, i) && sv(e, i).trim(); }
+  function workMinutes(e) { var t = 0; cfg().slots.forEach(function (s, i) { if (counts(e, i)) t += SMin(i) - lunchOverlap(e, i); }); return t; }
   function fmtH(m) { return String(Math.round(m / 60 * 100) / 100); }
-  function filledCount(e) { var c = 0; cfg().slots.forEach(function (s, i) { if (!covered(e, i) && sv(e, i).trim()) c++; }); return c; }
-  function coreMinutes() { return cfg().slots.filter(function (s) { return isCore(s); }).length * 30 - LC().minutes; }
+  function filledCount(e) { var c = 0; cfg().slots.forEach(function (s, i) { if (counts(e, i)) c++; }); return c; }
+  function coreMinutes() { var t = 0; cfg().slots.forEach(function (s, i) { if (isCore(s)) t += SMin(i); }); return Math.max(60, t - LC().minutes); }
   // ----- day types -----
-  function isLeave(t) { return /^leave/i.test(t || ''); }
-  function leaveType() { return cfg().leaveType || 'Leave / Comp Off'; }
+  function isOff(t) { return /^(leave|comp)/i.test(t || ''); }
+  function normType(t) { t = String(t || ''); if (/^comp/i.test(t)) return 'Comp Off'; if (/^leave/i.test(t)) return 'Leave'; return t || 'Office'; }
+  function offTypes() { return cfg().offTypes || ['Leave', 'Comp Off']; }
+  function isNight(t) { return (cfg().nightTypes || ['Site', 'Travel']).indexOf(t) >= 0; }
   function needsInvoice(t) { return (cfg().invoiceTypes || ['Site', 'Travel']).indexOf(t) >= 0; }
   function isCore(s) { return s.core !== undefined ? s.core : (s.start >= (cfg().coreStart || '09:00') && s.start < (cfg().coreEnd || '17:30')); }
-  function groupOf(s) { return isCore(s) ? 'core' : (s.start < (cfg().coreStart || '09:00') ? 'early' : 'late'); }
+  function groupOf(s, k) {
+    if (s.night) return 'night';
+    if (isCore(s)) return 'core';
+    var sl = cfg().slots; for (var j = 0; j < sl.length; j++) if (isCore(sl[j])) return k < j ? 'early' : 'late';
+    return 'late';
+  }
   var openGroups = {};
 
   function touch(mut) {
@@ -336,8 +369,22 @@
 
   function renderTypes() {
     var e = viewEntry(), box = $('types'); box.innerHTML = '';
+    var offDone = false;
     cfg().dayTypes.forEach(function (t) {
-      var b = document.createElement('button'); b.textContent = t; b.className = e.type === t ? 'on' : '';
+      var off = isOff(t);
+      if (off && offDone) return;              // Leave and Comp Off share one button (with a dropdown)
+      var b = document.createElement('button');
+      if (off) {
+        offDone = true;
+        b.textContent = isOff(e.type) ? e.type.replace('Comp Off', 'Comp-Off') + ' ▾' : 'Leave / Comp-Off';
+        b.className = isOff(e.type) ? 'on' : '';
+        b.onclick = function () {
+          if (!isOff(viewEntry().type)) { touch(function (x) { x.type = offTypes()[0]; }); renderLog(); }
+          var sel = $('offSel'); if (sel) { sel.focus(); try { sel.showPicker(); } catch (er) {} }
+        };
+        box.appendChild(b); return;
+      }
+      b.textContent = t; b.className = e.type === t ? 'on' : '';
       b.onclick = function () {
         var wasInv = needsInvoice(viewEntry().type);
         touch(function (x) { x.type = t; });
@@ -369,34 +416,42 @@
 
   function renderSlots() {
     var e = viewEntry(), box = $('slots'); box.innerHTML = '';
-    if (isLeave(e.type)) {
-      box.innerHTML = '<div class="leave"><b>Leave / comp-off 🌴</b>Nothing to fill in. Just tap <b>Submit day</b>.</div>';
+    if (isOff(e.type)) {
+      box.innerHTML = '<div class="leave"><b>' + (e.type === 'Comp Off' ? 'Comp-off day 🔁' : 'Leave 🌴') + '</b>' +
+        '<label class="offsel">This day is<select id="offSel" aria-label="Leave or comp-off">' +
+        offTypes().map(function (t) { return '<option value="' + esc(t) + '"' + (t === e.type ? ' selected' : '') + '>' + esc(t.replace('Comp Off', 'Comp-Off')) + '</option>'; }).join('') +
+        '</select></label>Nothing else to fill in. Just tap <b>Submit day</b>.</div>';
+      $('offSel').onchange = function () { var v = this.value; touch(function (x) { x.type = v; }); renderLog(); };
       return;
     }
-    var L = mins(lunchOf(e)), lunchDone = false;
+    var L = posOf(lunchOf(e)), lunchDone = false;
     var sl = cfg().slots, i = 0;
-    var groups = { early: [], late: [] };
-    sl.forEach(function (s, k) { var g = groupOf(s); if (g !== 'core') groups[g].push(k); });
-    ['early', 'late'].forEach(function (g) {
+    var groups = { early: [], late: [], night: [] };
+    sl.forEach(function (s, k) { var g = groupOf(s, k); if (g !== 'core') groups[g].push(k); });
+    ['early', 'late', 'night'].forEach(function (g) {
       if (openGroups[g + cur] === undefined) openGroups[g + cur] = groups[g].some(function (k) { return sv(e, k).trim(); });
     });
     function fold(g) {
       var ks = groups[g]; if (!ks.length) return;
       var first = sl[ks[0]], last = sl[ks[ks.length - 1]], open = openGroups[g + cur];
       var n = ks.filter(function (k) { return sv(e, k).trim(); }).length;
-      var b = document.createElement('button'); b.type = 'button'; b.className = 'fold' + (open ? ' open' : '');
-      b.innerHTML = '<span>' + (g === 'early' ? 'Earlier' : 'Later') + ' slots <small>' + clock(first.start) + ' – ' + clock(last.end) + (n ? ' · ' + n + ' filled' : '') + '</small></span><span class="chev">▾</span>';
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'fold' + (open ? ' open' : '') + (g === 'night' ? ' nt' : '');
+      var name = g === 'early' ? 'Earlier slots' : g === 'late' ? 'Later slots' : '🌙 Night shift';
+      b.innerHTML = '<span>' + name + ' <small>' + clock(first.start) + ' – ' + clock(last.end) + (g === 'night' ? ' next morning' : '') + (n ? ' · ' + n + ' filled' : '') + '</small></span><span class="chev">▾</span>';
       b.onclick = function () { openGroups[g + cur] = !open; renderSlots(); refreshSameButtons(); };
       box.appendChild(b);
     }
     var lastGroup = null;
     while (i < sl.length) {
-      var g = groupOf(sl[i]);
+      var g = groupOf(sl[i], i);
+      if (g === 'night' && !isNight(e.type)) { i++; continue; }
       if (g !== lastGroup) { if (g !== 'core') fold(g); lastGroup = g; }
-      if (!lunchDone && mins(sl[i].start) >= L) { box.appendChild(lunchRow(e)); lunchDone = true; }
-      if (g !== 'core' && !openGroups[g + cur]) { i++; continue; }
-      if (covered(e, i)) { i++; continue; }
-      box.appendChild(slotRow(i, e)); i++;
+      var a = posOf(sl[i].start);
+      if (!lunchDone && a >= L) { box.appendChild(lunchRow(e)); lunchDone = true; }
+      if ((g !== 'core' && !openGroups[g + cur]) || covered(e, i)) { i++; continue; }
+      box.appendChild(slotRow(i, e));
+      if (!lunchDone && L > a && L < a + SMin(i)) { box.appendChild(lunchRow(e)); lunchDone = true; }
+      i++;
     }
     if (!lunchDone) box.appendChild(lunchRow(e));
     box.querySelectorAll('textarea').forEach(autosize);
@@ -424,17 +479,17 @@
     return row;
   }
 
-  function prevWorkIdx(i) { var e = viewEntry(); for (var k = i - 1; k >= 0; k--) if (!covered(e, k)) return k; return -1; }
-  function nextWorkIdx(i) { var e = viewEntry(); for (var k = i + 1; k < cfg().slots.length; k++) if (!covered(e, k)) return k; return -1; }
+  function prevWorkIdx(i) { var e = viewEntry(); for (var k = i - 1; k >= 0; k--) if (shown(e, k) && !covered(e, k)) return k; return -1; }
+  function nextWorkIdx(i) { var e = viewEntry(); for (var k = i + 1; k < cfg().slots.length; k++) if (shown(e, k) && !covered(e, k)) return k; return -1; }
 
   function slotRow(i, e) {
     var s = cfg().slots[i];
-    var row = document.createElement('div'); row.className = 'slot' + (sv(e, i).trim() ? ' filled' : ''); row.dataset.i = i;
-    var a = mins(s.start), Lm = mins(lunchOf(e)), Em = Lm + LC().minutes, ws = a, we = a + 30;
-    if (lunchOverlap(e, i) > 0) { if (Lm > a) we = Lm; else ws = Em; }
-    row.innerHTML = '<div class="time"><b>' + clock(hm(ws)) + '</b><small' + (we - ws < 30 ? ' class="part" title="Part of this slot is lunch"' : '') + '>' + clock(hm(we)) + '</small></div>';
+    var row = document.createElement('div'); row.className = 'slot' + (sv(e, i).trim() ? ' filled' : '') + (s.night ? ' nt' : ''); row.dataset.i = i;
+    var lo = lunchOverlap(e, i);
+    row.innerHTML = '<div class="time"><b>' + clock(s.start) + '</b><small>' + clock(s.end) + '</small>' +
+      (lo > 0 ? '<em title="Lunch is inside this slot; it is not counted as work time">−' + lo + ' min lunch</em>' : '') + '</div>';
     var ta = document.createElement('textarea'); ta.rows = 1; ta.value = sv(e, i);
-    ta.placeholder = s.start === (cfg().coreStart || '09:00') ? 'What did you work on?' : '';
+    ta.placeholder = s.start === (cfg().coreStart || '09:00') ? 'What did you work on?' : (s.night && !sv(e, i) ? 'Night shift work (if any)' : '');
     ta.setAttribute('aria-label', 'Work from ' + clock(s.start) + ' to ' + clock(s.end));
     ta.oninput = function () {
       autosize(ta);
@@ -487,7 +542,7 @@
     var e = viewEntry(), btn = $('submit'), prog = $('prog');
     if (tab !== 'log') { $('bar').hidden = true; return; }
     $('bar').hidden = false;
-    if (isLeave(e.type)) { prog.innerHTML = '<b>Leave / comp-off</b><div>No slots needed</div>'; }
+    if (isOff(e.type)) { prog.innerHTML = '<b>' + esc(e.type.replace('Comp Off', 'Comp-off')) + '</b><div>No slots needed</div>'; }
     else {
       var wm = workMinutes(e), f = filledCount(e);
       prog.innerHTML = '<b>' + fmtH(wm) + ' h</b> logged · ' + f + ' slot' + (f === 1 ? '' : 's') + '<div class="meter"><i style="width:' + Math.min(100, Math.round(100 * wm / coreMinutes())) + '%"></i></div>';
@@ -516,10 +571,10 @@
     api('get', { date: d }).then(function (r) {
       var now = entry(asked);
       if (now && now.state !== 'synced' && now.state !== 'error') return; // user started typing meanwhile
-      if (r.entry) { S.entries[asked] = { type: r.entry.type, map: r.entry.map || {}, invoiceable: r.entry.invoiceable || '', client: r.entry.client || '', lunch: r.entry.lunch || LC().start, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
+      if (r.entry) { S.entries[asked] = { type: normType(r.entry.type), map: r.entry.map || {}, invoiceable: r.entry.invoiceable || '', client: r.entry.client || '', lunch: r.entry.lunch || LC().start, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
       else if (now && now.state === 'synced') delete S.entries[asked];
       persist();
-      delete openGroups['early' + asked]; delete openGroups['late' + asked];
+      delete openGroups['early' + asked]; delete openGroups['late' + asked]; delete openGroups['night' + asked];
       if (cur === asked && tab === 'log') renderLog();
     }).catch(function () {});
   }
@@ -527,7 +582,7 @@
   // ---------- submit & sync ----------
   function submit() {
     var e = viewEntry();
-    if (!isLeave(e.type) && filledCount(e) === 0) return toast('Write at least one slot, or choose Leave / Comp Off.');
+    if (!isOff(e.type) && filledCount(e) === 0) return toast('Write at least one slot, or choose Leave / Comp-Off.');
     if (needsInvoice(e.type) && !e.invoiceable) {
       var c = $('inv'); c.classList.remove('ask'); void c.offsetWidth; c.classList.add('ask');
       c.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -586,7 +641,7 @@
     var list = $('histList'); list.innerHTML = '';
     var h = S.history || {}, hol = cfg().holidays || {};
     var logged = 0, hours = 0, missing = 0;
-    function isBlankDraft(e) { return e && e.state === 'draft' && !isLeave(e.type) && !filledCount(e) && !(e.summary || '').trim() && !e.updatedAt; }
+    function isBlankDraft(e) { return e && e.state === 'draft' && !isOff(e.type) && !filledCount(e) && !(e.summary || '').trim() && !e.updatedAt; }
     var firstDay = null;
     Object.keys(h).concat(Object.keys(S.entries).filter(function (d) { return !isBlankDraft(S.entries[d]); }))
       .forEach(function (d) { if (!firstDay || d < firstDay) firstDay = d; });
@@ -602,15 +657,16 @@
       else if (loc && loc.state === 'error') badge = '<span class="badge b-wait">Needs attention</span>';
       else if (srv || (loc && loc.state === 'synced')) {
         var x = srv || loc;
-        badge = '<span class="badge b-ok">' + (isLeave(x.type) ? 'Leave' : (x.hours != null ? Math.round(x.hours * 100) / 100 : fmtH(workMinutes(x))) + ' h') + '</span>';
+        badge = '<span class="badge b-ok">' + (isOff(x.type) ? esc(normType(x.type).replace('Comp Off', 'Comp-off')) : (x.hours != null ? Math.round(x.hours * 100) / 100 : fmtH(workMinutes(x))) + ' h') + '</span>';
       }
       else if (hol[d]) badge = '<span class="badge b-off">' + esc(hol[d]) + '</span>';
       else if (!isWork) badge = '<span class="badge b-off">' + DAYS[wday(d)] + '</span>';
       else badge = '<span class="badge b-miss">Not logged</span>';
       if (src) {
-        if (isLeave(src.type)) snippet = 'Leave / comp-off';
+        if (isOff(src.type)) snippet = normType(src.type) === 'Comp Off' ? 'Comp-off day' : 'Leave';
         else {
-          var mp = src.map || {}, ks = Object.keys(mp).sort(), first = ks.length ? mp[ks.filter(function (k) { return k >= (cfg().coreStart || '09:00'); })[0] || ks[0]] : '';
+          var mp = src.map || {}, ks = Object.keys(mp).sort(function (a, b) { return posOf(a) - posOf(b); });
+          var first = ks.length ? mp[ks.filter(function (k) { return posOf(k) >= posOf(cfg().coreStart || '09:00'); })[0] || ks[0]] : '';
           snippet = src.type + (first ? ' · ' + first : '');
         }
         if (src.summary) snippet = '⚑ ' + src.summary;
