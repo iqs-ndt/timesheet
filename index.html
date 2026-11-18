@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f4c5c">
+<title>QInsight Daily Log</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="config.js"></script>
+<style>
+  :root{
+    --ink:#1d2a35; --muted:#6b7c88; --line:#dfe6ea; --bg:#f3f6f8; --card:#fff;
+    --teal:#0f4c5c; --teal2:#16697a; --orange:#e36414; --green:#2a9d6f; --amber:#c98a12; --red:#c0392b;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+  button{font:inherit;cursor:pointer}
+  [hidden]{display:none!important}
+  .wrap{max-width:720px;margin:0 auto}
+  header{position:sticky;top:0;z-index:5;background:var(--teal);color:#fff;padding:10px 14px calc(0px) 14px}
+  .hrow{display:flex;align-items:center;gap:10px}
+  .logo{width:36px;height:36px;border-radius:9px;background:#fff;color:var(--teal);display:grid;place-items:center;font-weight:800;font-size:20px;flex:none}
+  .ttl{font-weight:700;font-size:17px;line-height:1.1}
+  .who{font-size:13px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grow{flex:1;min-width:0}
+  .pill{border:0;border-radius:99px;padding:6px 11px;font-size:13px;font-weight:600;background:rgba(255,255,255,.16);color:#fff;white-space:nowrap;display:flex;align-items:center;gap:6px}
+  .pill i{width:8px;height:8px;border-radius:50%;background:#8fe3bd;display:inline-block}
+  .pill.warn i{background:#ffd166} .pill.off i{background:#ff8a7a}
+  .install{border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;border-radius:99px;padding:5px 10px;font-size:13px}
+  .tabs{display:flex;gap:4px;margin-top:10px}
+  .tabs button{flex:1;border:0;background:transparent;color:rgba(255,255,255,.75);padding:9px 0 10px;font-weight:600;border-bottom:3px solid transparent}
+  .tabs button.on{color:#fff;border-bottom-color:var(--orange)}
+  main{padding:12px 12px 120px}
+  .datebar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .nav{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:22px;color:var(--teal);flex:none}
+  .nav:disabled{opacity:.35;cursor:default}
+  .date{flex:1;position:relative;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:700;gap:8px}
+  .date input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+  .date .today{font-size:11px;font-weight:700;color:#fff;background:var(--orange);border-radius:6px;padding:2px 6px}
+  .notice{border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:10px;display:none}
+  .notice.show{display:block}
+  .n-ok{background:#e7f6ef;color:#17694a} .n-draft{background:#eef4f7;color:#2c5566} .n-wait{background:#fff5df;color:#7a5508} .n-err{background:#fdecea;color:#8e2a1f} .n-nudge{background:#fff1e6;color:#8a3d0c}
+  .types{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px;scrollbar-width:none}
+  .types button{flex:1 0 auto;min-width:64px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:8px 12px;font-size:14px;font-weight:600;color:var(--ink)}
+  .types button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+  .slots{overflow:hidden}
+  .slot{display:flex;align-items:flex-start;gap:10px;padding:8px 8px 8px 12px;border-top:1px solid var(--line)}
+  .slot:first-child{border-top:0}
+  .time{width:46px;flex:none;padding-top:9px;text-align:right}
+  .time b{display:block;font-size:15px}
+  .time small{display:block;color:var(--muted);font-size:12px}
+  .slot textarea{flex:1;min-width:0;border:1px solid transparent;background:#f6f9fa;border-radius:10px;padding:10px 11px;font:inherit;font-size:15px;resize:none;min-height:42px;overflow:hidden;color:var(--ink)}
+  .slot textarea:focus{outline:none;border-color:var(--teal2);background:#fff}
+  .slot.filled textarea{background:#fff;border-color:var(--line)}
+  .same{width:40px;height:42px;flex:none;border:1px dashed #b9c7cf;border-radius:10px;background:#fff;color:var(--teal);font-size:12px;line-height:1.05;font-weight:700;padding:0}
+  .same:disabled{opacity:.25;cursor:default}
+  .lunch{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line);background:repeating-linear-gradient(135deg,#f5f7f8,#f5f7f8 8px,#eef2f4 8px,#eef2f4 16px);color:var(--muted);font-size:14px}
+  .lunch .time{padding:0}
+  .leave{padding:28px 16px;text-align:center;color:var(--muted)}
+  .leave b{display:block;color:var(--ink);font-size:18px;margin-bottom:4px}
+  .blk{margin-top:12px;padding:12px;border-color:#f1d3bd;background:#fffaf5}
+  .blk label{display:block;font-weight:700;font-size:14px;margin-bottom:6px}
+  .blk label span{font-weight:500;color:var(--muted);font-size:12px;display:block}
+  .blk textarea{width:100%;border:1px solid #f1d3bd;border-radius:10px;padding:10px;font:inherit;font-size:15px;resize:none;min-height:60px;overflow:hidden;background:#fff}
+  .blk textarea:focus{outline:none;border-color:var(--orange)}
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(255,255,255,.97);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .bar .wrap{display:flex;align-items:center;gap:12px}
+  .prog{flex:1;font-size:13px;color:var(--muted)}
+  .prog b{color:var(--ink);font-size:15px}
+  .meter{height:5px;background:#e8eef1;border-radius:9px;margin-top:5px;overflow:hidden}
+  .meter i{display:block;height:100%;background:var(--green);border-radius:9px;transition:width .2s}
+  .submit{border:0;border-radius:12px;background:var(--orange);color:#fff;font-weight:700;font-size:16px;padding:13px 22px;min-width:150px}
+  .submit.done{background:var(--green)}
+  .submit:disabled{opacity:.6}
+  .hist .row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line);cursor:pointer;background:var(--card)}
+  .hist .row:first-child{border-top:0}
+  .hist .row:hover{background:#f8fbfc}
+  .hist .d{width:92px;flex:none;font-weight:600}
+  .hist .d small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+  .hist .s{flex:1;min-width:0;font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{font-size:12px;font-weight:700;border-radius:99px;padding:3px 9px;white-space:nowrap}
+  .b-ok{background:#e7f6ef;color:#17694a} .b-miss{background:#f1f4f6;color:#7d8b95} .b-wait{background:#fff5df;color:#7a5508} .b-draft{background:#eef4f7;color:#2c5566} .b-off{background:#f6f1fb;color:#6a4a8c}
+  .hist .row.rest{opacity:.55}
+  .histhead{display:flex;gap:10px;margin:2px 0 12px}
+  .histhead .card{flex:1;padding:10px 12px}
+  .histhead b{display:block;font-size:22px;color:var(--teal)}
+  .histhead small{color:var(--muted);font-size:12px}
+  .gate{padding:60px 24px;text-align:center}
+  .gate .logo{width:64px;height:64px;font-size:34px;margin:0 auto 18px;background:var(--teal);color:#fff;border-radius:16px}
+  .gate h2{margin:0 0 8px}
+  .gate p{color:var(--muted);max-width:380px;margin:0 auto 16px}
+  #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%) translateY(20px);background:#1d2a35;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:9;max-width:90vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .muted{color:var(--muted);font-size:13px}
+  .foot{text-align:center;margin-top:16px}
+</style>
+</head>
+<body>
+<div id="app" hidden>
+  <header>
+    <div class="wrap">
+      <div class="hrow">
+        <div class="logo">Q</div>
+        <div class="grow"><div class="ttl">Daily log</div><div class="who" id="who"></div></div>
+        <button class="install" id="installBtn" hidden>Install</button>
+        <button class="pill" id="pill" title="Tap to sync now"><i></i><span>…</span></button>
+      </div>
+      <nav class="tabs"><button data-tab="log" class="on">Log my day</button><button data-tab="hist">My history</button></nav>
+    </div>
+  </header>
+
+  <main id="tab-log" class="wrap">
+    <div class="datebar">
+      <button class="nav" id="prev" aria-label="Previous day">‹</button>
+      <label class="date"><span id="dateTxt"></span><span class="today" id="todayTag" hidden>TODAY</span><input type="date" id="dateIn" aria-label="Pick a date"></label>
+      <button class="nav" id="next" aria-label="Next day">›</button>
+    </div>
+    <div id="notice" class="notice"></div>
+    <div class="types" id="types"></div>
+    <div class="card slots" id="slots"></div>
+    <div class="card blk">
+      <label for="summary">Any challenge, bottleneck or dependency? <span>Optional · goes straight to your manager when you submit</span></label>
+      <textarea id="summary" rows="2" placeholder="e.g. Waiting for client drawings to start the UT report"></textarea>
+    </div>
+    <p class="muted foot">Your entries save on this device as you type. You can edit any day from the last <span class="win">30</span> days.</p>
+  </main>
+
+  <main id="tab-hist" class="wrap" hidden>
+    <div class="histhead" id="histHead"></div>
+    <div class="card hist" id="histList"></div>
+    <p class="muted foot">Only you can see this. Tap any day to view or edit it.</p>
+  </main>
+
+  <div class="bar" id="bar">
+    <div class="wrap">
+      <div class="prog" id="prog"></div>
+      <button class="submit" id="submit">Submit day</button>
+    </div>
+  </div>
+</div>
+
+<div id="gate" class="gate" hidden>
+  <div class="logo">Q</div>
+  <h2 id="gateTitle">QInsight Daily Log</h2>
+  <p id="gateMsg"></p>
+</div>
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var API = (window.QTS_CONFIG || {}).API_URL || '';
+  var LS = 'qts.v1';
+  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---------- storage ----------
+  var S;
+  try { S = JSON.parse(localStorage.getItem(LS)) || {}; } catch (e) { S = {}; }
+  S.entries = S.entries || {};
+  function persist() { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} }
+
+  // ---------- dates ----------
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function localToday() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function dnum(s) { var p = s.split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]) / 864e5; }
+  function addDays(s, n) { var d = new Date((dnum(s) + n) * 864e5); return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()); }
+  function wday(s) { return new Date(dnum(s) * 864e5).getUTCDay(); }
+  function pretty(s, long) { var p = s.split('-'); return DAYS[wday(s)].slice(0, 3) + ', ' + (+p[2]) + ' ' + MON[+p[1] - 1] + (long ? ' ' + p[0] : ''); }
+  function clock(hhmm) { var p = hhmm.split(':'), h = +p[0] % 12 || 12; return h + ':' + p[1]; }
+  function stamp(iso) {
+    if (!iso) return ''; var d = new Date(iso); if (isNaN(d)) return '';
+    var h = d.getHours() % 12 || 12;
+    return d.getDate() + ' ' + MON[d.getMonth()] + ', ' + h + ':' + pad(d.getMinutes()) + (d.getHours() < 12 ? ' am' : ' pm');
+  }
+  function today() { return localToday(); }
+  function minDay() { return addDays(today(), -cfg().editWindowDays); }
+
+  // ---------- config ----------
+  var DEFAULT_CFG = { slots: [], dayTypes: ['Office','Site','WFH','Travel','Leave'], editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
+  function cfg() { return S.config || DEFAULT_CFG; }
+  function nSlots() { return cfg().slots.length; }
+
+  // ---------- network ----------
+  function api(action, extra) {
+    var body = Object.assign({ action: action, token: S.token }, extra || {});
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 30000);
+    function netErr(msg) { var e = new Error(msg || 'offline'); e.network = true; return e; }
+    if (!API || API.indexOf('http') !== 0) return Promise.reject(new Error('App is not configured yet (config.js).'));
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), redirect: 'follow', signal: ctrl ? ctrl.signal : undefined })
+      .catch(function () { throw netErr(); })
+      .then(function (res) { clearTimeout(timer); return res.json().catch(function () { throw netErr('Server busy'); }); })
+      .then(function (j) {
+        if (!j.ok) {
+          var e = new Error(j.error || 'Something went wrong'); e.code = j.code;
+          if (j.code === 'BAD_TOKEN' || j.code === 'INACTIVE') lockOut(j.error);
+          throw e;
+        }
+        return j;
+      });
+  }
+
+  // ---------- boot ----------
+  var qp = new URLSearchParams(location.search), t = qp.get('t');
+  if (t) {
+    if (S.token && S.token !== t) { S.prevProfileId = S.profile && S.profile.id; S.profile = null; }
+    S.token = t; persist();
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  }
+
+  function gate(title, msg) { $('app').hidden = true; $('gate').hidden = false; $('gateTitle').textContent = title; $('gateMsg').textContent = msg; }
+  function lockOut(msg) { S.profile = null; persist(); gate('Link not active', msg); }
+
+  function hello() {
+    return api('hello').then(function (r) {
+      if (S.prevProfileId && S.prevProfileId !== r.profile.id) { S.entries = {}; S.history = null; }
+      delete S.prevProfileId;
+      S.profile = r.profile; S.config = r.config; persist();
+      return r;
+    });
+  }
+
+  function boot() {
+    if (!S.token) return gate('Open your personal link', 'Please open the personal timesheet link your admin sent you (by email or WhatsApp). After that, you can install it as an app.');
+    if (S.profile && S.config) { start(); hello().then(renderHeader).catch(function () {}); return; }
+    gate('Setting up…', 'Connecting to QInsight…');
+    hello().then(start).catch(function (e) {
+      if (e.code) return;
+      gate('Connect once to set up', e.network ? 'Please connect to the internet once so the app can load your timesheet. After that, it also works offline.' : e.message);
+    });
+  }
+
+  // ---------- state ----------
+  var cur = today();
+  var tab = 'log';
+
+  function blank() {
+    var s = []; for (var i = 0; i < nSlots(); i++) s.push('');
+    return { type: S.lastType && S.lastType !== 'Leave' ? S.lastType : 'Office', slots: s, summary: '', state: 'new' };
+  }
+  function entry(d) { return S.entries[d] || null; }
+  function viewEntry() { return entry(cur) || blank(); }
+  function filledCount(e) { var c = 0; cfg().slots.forEach(function (s, i) { if (!s.lunch && (e.slots[i] || '').trim()) c++; }); return c; }
+  function workSlots() { return cfg().slots.filter(function (s) { return !s.lunch; }).length; }
+
+  function touch(mut) {
+    var e = S.entries[cur] || (S.entries[cur] = blank());
+    mut(e);
+    e.state = 'draft';
+    e.editedAt = Date.now();
+    if (e.type) S.lastType = e.type;
+    persist();
+  }
+
+  // ---------- rendering ----------
+  function renderHeader() {
+    if (!S.profile) return;
+    $('who').textContent = S.profile.name + ' · ' + S.profile.dept;
+    document.querySelectorAll('.win').forEach(function (n) { n.textContent = cfg().editWindowDays; });
+    renderPill();
+  }
+
+  var syncing = false;
+  function pendingCount() { var n = 0; for (var d in S.entries) if (S.entries[d].state === 'pending') n++; return n; }
+  function renderPill() {
+    var p = $('pill'), n = pendingCount(), txt, cls = '';
+    if (!navigator.onLine) { txt = n ? 'Offline · ' + n + ' waiting' : 'Offline'; cls = 'off'; }
+    else if (syncing) { txt = 'Syncing…'; cls = 'warn'; }
+    else if (n) { txt = n + ' waiting'; cls = 'warn'; }
+    else txt = 'Synced';
+    p.className = 'pill ' + cls; p.querySelector('span').textContent = txt;
+  }
+
+  function renderDate() {
+    $('dateTxt').textContent = pretty(cur, true);
+    $('todayTag').hidden = cur !== today();
+    var di = $('dateIn'); di.min = minDay(); di.max = today(); di.value = cur;
+    $('prev').disabled = cur <= minDay();
+    $('next').disabled = cur >= today();
+  }
+
+  function renderTypes() {
+    var e = viewEntry(), box = $('types'); box.innerHTML = '';
+    cfg().dayTypes.forEach(function (t) {
+      var b = document.createElement('button'); b.textContent = t; b.className = e.type === t ? 'on' : '';
+      b.onclick = function () { touch(function (x) { x.type = t; }); renderLog(); };
+      box.appendChild(b);
+    });
+  }
+
+  function autosize(ta) { ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 2) + 'px'; }
+
+  function renderSlots() {
+    var e = viewEntry(), box = $('slots'); box.innerHTML = '';
+    if (e.type === 'Leave') {
+      box.innerHTML = '<div class="leave"><b>On leave today 🌴</b>Nothing to fill in. Just tap <b>Submit day</b>.</div>';
+      return;
+    }
+    var sl = cfg().slots, i = 0;
+    while (i < sl.length) {
+      if (sl[i].lunch) {
+        var j = i; while (j + 1 < sl.length && sl[j + 1].lunch) j++;
+        var l = document.createElement('div'); l.className = 'lunch';
+        l.innerHTML = '<div class="time"><b>' + clock(sl[i].start) + '</b><small>' + clock(sl[j].end) + '</small></div><div>Lunch break</div>';
+        box.appendChild(l); i = j + 1; continue;
+      }
+      box.appendChild(slotRow(i, e)); i++;
+    }
+    box.querySelectorAll('textarea').forEach(autosize);
+  }
+
+  function prevWorkIdx(i) { var sl = cfg().slots; for (var k = i - 1; k >= 0; k--) if (!sl[k].lunch) return k; return -1; }
+  function nextWorkIdx(i) { var sl = cfg().slots; for (var k = i + 1; k < sl.length; k++) if (!sl[k].lunch) return k; return -1; }
+
+  function slotRow(i, e) {
+    var s = cfg().slots[i];
+    var row = document.createElement('div'); row.className = 'slot' + ((e.slots[i] || '').trim() ? ' filled' : ''); row.dataset.i = i;
+    row.innerHTML = '<div class="time"><b>' + clock(s.start) + '</b><small>' + clock(s.end) + '</small></div>';
+    var ta = document.createElement('textarea'); ta.rows = 1; ta.value = e.slots[i] || '';
+    ta.placeholder = i === 0 ? 'What did you work on?' : '';
+    ta.setAttribute('aria-label', 'Work from ' + clock(s.start) + ' to ' + clock(s.end));
+    ta.oninput = function () {
+      autosize(ta);
+      touch(function (x) { x.slots[i] = ta.value; });
+      row.classList.toggle('filled', !!ta.value.trim());
+      refreshSameButtons(); renderNotice(); renderBar();
+    };
+    ta.onkeydown = function (ev) {
+      if (ev.key === 'Enter' && !ev.shiftKey) {
+        ev.preventDefault();
+        var n = nextWorkIdx(i);
+        var nx = n >= 0 && document.querySelector('.slot[data-i="' + n + '"] textarea');
+        (nx || $('summary')).focus();
+      }
+    };
+    var b = document.createElement('button'); b.className = 'same'; b.type = 'button';
+    b.innerHTML = '↑<br>same'; b.title = 'Same as the slot above';
+    b.onclick = function () {
+      var p = prevWorkIdx(i); if (p < 0) return;
+      var v = viewEntry().slots[p] || ''; if (!v.trim()) return;
+      ta.value = v; ta.oninput();
+      var n = nextWorkIdx(i); var nx = n >= 0 && document.querySelector('.slot[data-i="' + n + '"] .same');
+      if (nx) nx.focus();
+    };
+    row.appendChild(ta); row.appendChild(b);
+    return row;
+  }
+
+  function refreshSameButtons() {
+    var e = viewEntry();
+    document.querySelectorAll('.slot').forEach(function (r) {
+      var i = +r.dataset.i, p = prevWorkIdx(i);
+      r.querySelector('.same').disabled = p < 0 || !(e.slots[p] || '').trim();
+    });
+  }
+
+  function renderNotice() {
+    var e = entry(cur), n = $('notice'), cls = '', msg = '';
+    if (e && e.state === 'synced') { cls = 'n-ok'; msg = '✓ Submitted' + (e.updatedAt ? ' · ' + stamp(e.updatedAt) : '') + '. Change anything and submit again to update it.'; }
+    else if (e && e.state === 'pending') { cls = 'n-wait'; msg = navigator.onLine ? 'Sending…' : 'Saved on this device. It will be sent automatically when you are back online.'; }
+    else if (e && e.state === 'error') { cls = 'n-err'; msg = 'Could not submit: ' + (e.error || 'error') + ''; }
+    else if (e && e.state === 'draft') { cls = 'n-draft'; msg = 'Draft saved on this device. Tap Submit day when you are done.'; }
+    else if (cur === today() && nowHHMM() >= cfg().reminderAt) { cls = 'n-nudge'; msg = 'Wrapping up? It takes about 2 minutes. Write a few words per slot.'; }
+    else if (cur < today()) { cls = 'n-draft'; msg = 'Nothing submitted for this day yet.'; }
+    n.className = 'notice ' + cls + (msg ? ' show' : ''); n.textContent = msg;
+  }
+  function nowHHMM() { var d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+
+  function renderBar() {
+    var e = viewEntry(), btn = $('submit'), prog = $('prog');
+    if (tab !== 'log') { $('bar').hidden = true; return; }
+    $('bar').hidden = false;
+    if (e.type === 'Leave') { prog.innerHTML = '<b>Leave</b><div>No slots needed</div>'; }
+    else {
+      var f = filledCount(e), w = workSlots();
+      prog.innerHTML = '<b>' + (f / 2) + ' h</b> logged · ' + f + ' of ' + w + ' slots<div class="meter"><i style="width:' + Math.round(100 * f / w) + '%"></i></div>';
+    }
+    var st = entry(cur) ? entry(cur).state : 'new';
+    btn.disabled = st === 'pending' && syncing;
+    btn.classList.toggle('done', st === 'synced');
+    btn.textContent = st === 'synced' ? 'Submitted ✓' : st === 'pending' ? 'Queued ✓' : (entry(cur) && entry(cur).updatedAt ? 'Update day' : 'Submit day');
+  }
+
+  function renderLog() {
+    renderDate(); renderTypes(); renderSlots(); refreshSameButtons();
+    var s = $('summary'); s.value = viewEntry().summary || ''; autosize(s);
+    renderNotice(); renderBar();
+  }
+
+  function renderAll() { renderHeader(); if (tab === 'log') renderLog(); else renderHist(); renderBar(); }
+
+  // ---------- open a date ----------
+  function openDate(d) {
+    if (d > today()) d = today(); if (d < minDay()) d = minDay();
+    cur = d; renderLog(); window.scrollTo(0, 0);
+    var local = entry(d);
+    if (!navigator.onLine || (local && (local.state === 'draft' || local.state === 'pending'))) return;
+    var asked = d;
+    api('get', { date: d }).then(function (r) {
+      var now = entry(asked);
+      if (now && now.state !== 'synced' && now.state !== 'error') return; // user started typing meanwhile
+      if (r.entry) { S.entries[asked] = { type: r.entry.type, slots: r.entry.slots, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
+      else if (now && now.state === 'synced') delete S.entries[asked];
+      persist();
+      if (cur === asked && tab === 'log') renderLog();
+    }).catch(function () {});
+  }
+
+  // ---------- submit & sync ----------
+  function submit() {
+    var e = viewEntry();
+    if (e.type !== 'Leave' && filledCount(e) === 0) return toast('Write at least one slot, or choose Leave.');
+    if (entry(cur) && entry(cur).state === 'synced') return toast('Already submitted. Edit something to update it.');
+    var x = S.entries[cur] || (S.entries[cur] = e);
+    x.state = 'pending'; x.editedAt = Date.now(); persist();
+    renderLog(); renderPill();
+    if (!navigator.onLine) toast('Saved offline. It will send when you are connected.');
+    sync(true);
+  }
+
+  function sync(fromSubmit) {
+    if (syncing) return Promise.resolve();
+    if (!navigator.onLine || !S.token) { renderPill(); return Promise.resolve(); }
+    var dates = Object.keys(S.entries).filter(function (d) { return S.entries[d].state === 'pending'; }).sort();
+    if (!dates.length) { renderPill(); return Promise.resolve(); }
+    syncing = true; renderPill(); renderBar();
+    var sentOk = 0;
+    var chain = Promise.resolve(), stop = false;
+    dates.forEach(function (d) {
+      chain = chain.then(function () {
+        if (stop) return;
+        var e = S.entries[d], sentEdit = e.editedAt;
+        return api('save', { entry: { date: d, type: e.type, slots: e.slots, summary: e.summary } }).then(function (r) {
+          var now = S.entries[d];
+          if (now && now.editedAt === sentEdit) { now.state = 'synced'; now.updatedAt = r.updatedAt; now.hours = r.hours; delete now.error; }
+          sentOk++;
+          if (r.notified) toast('Submitted. Your note was sent to your manager.');
+          if (S.history) S.history[d] = { type: e.type, hours: r.hours, summary: e.summary, updatedAt: r.updatedAt };
+        }).catch(function (err) {
+          if (err.network) { stop = true; return; }
+          var now = S.entries[d]; if (now) { now.state = 'error'; now.error = err.message; }
+        });
+      });
+    });
+    return chain.then(function () {
+      syncing = false; persist(); renderAll();
+      if (sentOk && fromSubmit && !document.querySelector('#toast.show')) toast(sentOk > 1 ? sentOk + ' days submitted ✓' : 'Submitted ✓');
+    });
+  }
+
+  // ---------- history ----------
+  function loadHistory() {
+    if (!navigator.onLine) return;
+    api('history').then(function (r) {
+      var h = {}; r.history.forEach(function (e) { h[e.date] = e; });
+      S.history = h; persist();
+      // refresh local synced copies that may have been changed on another device
+      if (tab === 'hist') renderHist();
+    }).catch(function () {});
+  }
+
+  function renderHist() {
+    var list = $('histList'); list.innerHTML = '';
+    var h = S.history || {}, hol = cfg().holidays || {};
+    var logged = 0, hours = 0, missing = 0;
+    function isBlankDraft(e) { return e && e.state === 'draft' && e.type !== 'Leave' && !filledCount(e) && !(e.summary || '').trim() && !e.updatedAt; }
+    var firstDay = null;
+    Object.keys(h).concat(Object.keys(S.entries).filter(function (d) { return !isBlankDraft(S.entries[d]); }))
+      .forEach(function (d) { if (!firstDay || d < firstDay) firstDay = d; });
+    for (var k = 0; k <= cfg().editWindowDays; k++) {
+      var d = addDays(today(), -k), loc = entry(d), srv = h[d];
+      if (isBlankDraft(loc)) loc = null;
+      var isWork = cfg().workDays.indexOf(wday(d)) >= 0 && !hol[d];
+      var row = document.createElement('div'); row.className = 'row';
+      var badge, snippet = '';
+      var src = (loc && loc.state !== 'synced') ? loc : (srv || (loc && loc.state === 'synced' ? loc : null));
+      if (loc && loc.state === 'pending') badge = '<span class="badge b-wait">Waiting to sync</span>';
+      else if (loc && loc.state === 'draft') badge = '<span class="badge b-draft">Draft</span>';
+      else if (loc && loc.state === 'error') badge = '<span class="badge b-wait">Needs attention</span>';
+      else if (srv || (loc && loc.state === 'synced')) {
+        var x = srv || loc;
+        badge = '<span class="badge b-ok">' + (x.type === 'Leave' ? 'Leave' : (x.hours != null ? x.hours : filledCount(x) / 2) + ' h') + '</span>';
+      }
+      else if (hol[d]) badge = '<span class="badge b-off">' + esc(hol[d]) + '</span>';
+      else if (!isWork) badge = '<span class="badge b-off">' + DAYS[wday(d)] + '</span>';
+      else badge = '<span class="badge b-miss">Not logged</span>';
+      if (src) {
+        if (src.type === 'Leave') snippet = 'On leave';
+        else { var first = (src.slots || []).filter(function (s) { return s && s.trim() && s !== 'Lunch'; }); snippet = src.type + (first.length ? ' · ' + first[0] : ''); }
+        if (src.summary) snippet = '⚑ ' + src.summary;
+      }
+      if (srv || (loc && loc.state === 'synced')) { var xx = srv || loc; logged++; hours += xx.hours != null ? Number(xx.hours) : filledCount(xx) / 2; }
+      if (isWork && d < today() && firstDay && d >= firstDay && !srv && !(loc && loc.state !== 'draft')) missing++;
+      if (!isWork && !src) row.classList.add('rest');
+      row.innerHTML = '<div class="d">' + pretty(d).split(', ')[1] + '<small>' + DAYS[wday(d)] + (d === today() ? ' · today' : '') + '</small></div><div class="s">' + esc(snippet) + '</div>' + badge;
+      (function (dd) { row.onclick = function () { setTab('log'); openDate(dd); }; })(d);
+      list.appendChild(row);
+    }
+    $('histHead').innerHTML =
+      '<div class="card"><b>' + logged + '</b><small>days logged (30 days)</small></div>' +
+      '<div class="card"><b>' + (Math.round(hours * 10) / 10) + '</b><small>hours logged</small></div>' +
+      '<div class="card"><b>' + missing + '</b><small>work days to fill</small></div>';
+  }
+  function esc(s) { return String(s || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // ---------- tabs & events ----------
+  function setTab(t) {
+    tab = t;
+    document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); });
+    $('tab-log').hidden = t !== 'log'; $('tab-hist').hidden = t !== 'hist';
+    if (t === 'hist') { renderHist(); loadHistory(); } else renderLog();
+    renderBar(); window.scrollTo(0, 0);
+  }
+
+  var toastTimer;
+  function toast(msg) { var el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2800); }
+
+  function prune() {
+    var cutoff = addDays(today(), -(cfg().editWindowDays + 5));
+    for (var d in S.entries) if (d < cutoff && S.entries[d].state !== 'pending') delete S.entries[d];
+    persist();
+  }
+
+  var started = false;
+  function start() {
+    $('gate').hidden = true; $('app').hidden = false;
+    if (started) { renderAll(); return; }
+    started = true;
+    prune(); renderHeader();
+    document.querySelectorAll('.tabs button').forEach(function (b) { b.onclick = function () { setTab(b.dataset.tab); }; });
+    $('prev').onclick = function () { openDate(addDays(cur, -1)); };
+    $('next').onclick = function () { openDate(addDays(cur, 1)); };
+    $('dateIn').onchange = function () { if (this.value) openDate(this.value); };
+    $('submit').onclick = submit;
+    $('pill').onclick = function () { if (!navigator.onLine) return toast('You are offline. Entries are safe on this device.'); sync().then(function () { if (tab === 'hist') loadHistory(); else openDate(cur); }); };
+    $('summary').oninput = function () { autosize(this); var v = this.value; touch(function (x) { x.summary = v; }); renderNotice(); renderBar(); };
+    window.addEventListener('online', function () { renderPill(); renderNotice(); sync().then(function () { if (tab === 'hist') loadHistory(); }); });
+    window.addEventListener('offline', function () { renderPill(); renderNotice(); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
+      if (cur > today() || (lastToday !== today() && cur === lastToday)) { lastToday = today(); openDate(today()); }
+      sync();
+    });
+    setInterval(function () { sync(); }, 60000);
+    openDate(today());
+    sync();
+  }
+  var lastToday = today();
+
+  // ---------- install ----------
+  var deferred = null;
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; $('installBtn').hidden = false; });
+  $('installBtn').onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.finally(function () { deferred = null; $('installBtn').hidden = true; }); };
+  window.addEventListener('appinstalled', function () { $('installBtn').hidden = true; toast('Installed! Find "QInsight Log" on your home screen.'); });
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(function () {});
+
+  boot();
+})();
+</script>
+</body>
+</html>
