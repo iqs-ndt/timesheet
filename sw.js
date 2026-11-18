@@ -1,7 +1,7 @@
 // QInsight Daily Log: offline support.
 // Bump VERSION whenever you upload changed app files, so phones pick up the new version.
-var VERSION = 'qts-v5';
-var SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+var VERSION = 'qts-v6';
+var SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './logo.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
