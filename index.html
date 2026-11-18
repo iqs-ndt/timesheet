@@ -42,7 +42,7 @@
   .notice{border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:10px;display:none}
   .notice.show{display:block}
   .n-ok{background:#e7f6ef;color:#17694a} .n-draft{background:#eef4f7;color:#2c5566} .n-wait{background:#fff5df;color:#7a5508} .n-err{background:#fdecea;color:#8e2a1f} .n-nudge{background:#fff1e6;color:#8a3d0c}
-  .types{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:12px;scrollbar-width:none}
+  .types{display:flex;flex-wrap:wrap;gap:6px;padding-bottom:2px;margin-bottom:12px}
   .types button{flex:1 0 auto;min-width:64px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:8px 12px;font-size:14px;font-weight:600;color:var(--ink)}
   .types button.on{background:var(--teal);border-color:var(--teal);color:#fff}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
@@ -57,8 +57,26 @@
   .slot.filled textarea{background:#fff;border-color:var(--line)}
   .same{width:40px;height:42px;flex:none;border:1px dashed #b9c7cf;border-radius:10px;background:#fff;color:var(--teal);font-size:12px;line-height:1.05;font-weight:700;padding:0}
   .same:disabled{opacity:.25;cursor:default}
-  .lunch{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line);background:repeating-linear-gradient(135deg,#f5f7f8,#f5f7f8 8px,#eef2f4 8px,#eef2f4 16px);color:var(--muted);font-size:14px}
+  .lunch{display:flex;align-items:center;gap:10px;padding:10px 8px 10px 12px;border-top:1px solid var(--line);background:repeating-linear-gradient(135deg,#f5f7f8,#f5f7f8 8px,#eef2f4 8px,#eef2f4 16px);color:var(--muted);font-size:14px}
   .lunch .time{padding:0}
+  .lunch .lg{flex:1;min-width:0}
+  .lunch .lg div{font-weight:600;color:var(--ink);font-size:14px}
+  .lunch .lg div span{font-weight:500;color:var(--muted);font-size:12px}
+  .lunch input[type=range]{width:100%;margin:8px 0 2px;accent-color:var(--teal);height:22px}
+  .lunch .lb{display:flex;flex-direction:column;gap:4px}
+  .lunch .lb button{width:40px;height:30px;border:1px solid #b9c7cf;border-radius:8px;background:#fff;color:var(--teal);font-size:14px;padding:0}
+  .lunch .lb button:disabled{opacity:.3}
+  .slot .time small.part{color:var(--orange);font-weight:600}
+  .inv{margin:-2px 0 12px;padding:12px;border-color:#9fd3c7;background:#f2fbf8}
+  .inv.ask{border-color:var(--orange);background:#fff6ec;animation:pulse 1s ease 2}
+  @keyframes pulse{50%{box-shadow:0 0 0 4px rgba(227,100,20,.25)}}
+  .inv .q{font-weight:700;font-size:14px;margin-bottom:8px}
+  .inv .q span{display:block;font-weight:500;color:var(--muted);font-size:12px}
+  .inv .yn{display:flex;gap:8px}
+  .inv .yn button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px;font-weight:700;font-size:15px;color:var(--ink)}
+  .inv .yn button.on.y{background:var(--green);border-color:var(--green);color:#fff}
+  .inv .yn button.on.n{background:#6b7c88;border-color:#6b7c88;color:#fff}
+  .inv input{width:100%;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:15px}
   .fold{display:flex;align-items:center;gap:10px;width:100%;border:0;border-top:1px solid var(--line);background:#f7fafb;color:var(--teal);font-weight:600;font-size:14px;padding:11px 14px;text-align:left}
   .fold:first-child{border-top:0}
   .fold span:first-child{flex:1}
@@ -126,6 +144,7 @@
     </div>
     <div id="notice" class="notice"></div>
     <div class="types" id="types"></div>
+    <div class="card inv" id="inv" hidden></div>
     <div class="card slots" id="slots"></div>
     <div class="card blk">
       <label for="summary">Any challenge, bottleneck or dependency? <span>Optional · goes straight to your manager when you submit</span></label>
@@ -187,7 +206,7 @@
   function minDay() { return addDays(today(), -cfg().editWindowDays); }
 
   // ---------- config ----------
-  var DEFAULT_CFG = { slots: [], dayTypes: ['Office','Site','WFH','Travel','Leave'], editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
+  var DEFAULT_CFG = { slots: [], dayTypes: ['Office','Site','WFH','Travel','Leave / Comp Off'], leaveType: 'Leave / Comp Off', invoiceTypes: ['Site','Travel'], lunch: { start: '13:00', minutes: 45, earliest: '11:00', latest: '16:15', step: 15 }, editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
   function cfg() { return S.config || DEFAULT_CFG; }
   function nSlots() { return cfg().slots.length; }
 
@@ -246,12 +265,13 @@
   var tab = 'log';
 
   function blank() {
-    return { type: S.lastType && S.lastType !== 'Leave' ? S.lastType : 'Office', map: {}, summary: '', state: 'new' };
+    return { type: S.lastType && !isLeave(S.lastType) ? S.lastType : 'Office', map: {}, summary: '', state: 'new' };
   }
   function entry(d) { var e = S.entries[d]; if (e) normalize(e); return e || null; }
   function viewEntry() { return entry(cur) || blank(); }
   // Slots are stored by start time ("09:30"), so entries stay correct even if the slot layout changes.
   function normalize(e) {
+    if (isLeave(e.type) && e.type !== leaveType()) e.type = leaveType();
     if (e.map) return e;
     e.map = {};
     (e.slots || []).forEach(function (v, i) { if (v && v !== 'Lunch') { var m = 540 + 30 * i; e.map[pad(Math.floor(m / 60)) + ':' + pad(m % 60)] = v; } });
@@ -259,10 +279,23 @@
   }
   function sv(e, i) { var s = cfg().slots[i]; return s ? ((e.map || {})[s.start] || '') : ''; }
   function setSv(e, i, v) { var k = cfg().slots[i].start; e.map = e.map || {}; if (v) e.map[k] = v; else delete e.map[k]; }
-  function filledCount(e) { var c = 0; cfg().slots.forEach(function (s, i) { if (!s.lunch && sv(e, i).trim()) c++; }); return c; }
-  function coreSlots() { return cfg().slots.filter(function (s) { return !s.lunch && isCore(s); }).length; }
+  // ----- lunch (movable, default 45 min) -----
+  function LC() { var l = cfg().lunch || {}; return { start: l.start || '13:00', minutes: l.minutes || 45, earliest: l.earliest || '11:00', latest: l.latest || '16:15', step: l.step || 15 }; }
+  function mins(t) { var p = String(t).split(':'); return +p[0] * 60 + +p[1]; }
+  function hm(m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
+  function lunchOf(e) { return (e && e.lunch) || LC().start; }
+  function lunchOverlap(e, i) { var a = mins(cfg().slots[i].start), L = mins(lunchOf(e)), E = L + LC().minutes; return Math.max(0, Math.min(a + 30, E) - Math.max(a, L)); }
+  function covered(e, i) { return lunchOverlap(e, i) >= 30; }
+  function workMinutes(e) { var t = 0; cfg().slots.forEach(function (s, i) { if (!covered(e, i) && sv(e, i).trim()) t += 30 - lunchOverlap(e, i); }); return t; }
+  function fmtH(m) { return String(Math.round(m / 60 * 100) / 100); }
+  function filledCount(e) { var c = 0; cfg().slots.forEach(function (s, i) { if (!covered(e, i) && sv(e, i).trim()) c++; }); return c; }
+  function coreMinutes() { return cfg().slots.filter(function (s) { return isCore(s); }).length * 30 - LC().minutes; }
+  // ----- day types -----
+  function isLeave(t) { return /^leave/i.test(t || ''); }
+  function leaveType() { return cfg().leaveType || 'Leave / Comp Off'; }
+  function needsInvoice(t) { return (cfg().invoiceTypes || ['Site', 'Travel']).indexOf(t) >= 0; }
   function isCore(s) { return s.core !== undefined ? s.core : (s.start >= (cfg().coreStart || '09:00') && s.start < (cfg().coreEnd || '17:30')); }
-  function groupOf(s) { return isCore(s) || s.lunch ? 'core' : (s.start < (cfg().coreStart || '09:00') ? 'early' : 'late'); }
+  function groupOf(s) { return isCore(s) ? 'core' : (s.start < (cfg().coreStart || '09:00') ? 'early' : 'late'); }
   var openGroups = {};
 
   function touch(mut) {
@@ -305,19 +338,42 @@
     var e = viewEntry(), box = $('types'); box.innerHTML = '';
     cfg().dayTypes.forEach(function (t) {
       var b = document.createElement('button'); b.textContent = t; b.className = e.type === t ? 'on' : '';
-      b.onclick = function () { touch(function (x) { x.type = t; }); renderLog(); };
+      b.onclick = function () {
+        var wasInv = needsInvoice(viewEntry().type);
+        touch(function (x) { x.type = t; });
+        renderLog();
+        if (needsInvoice(t) && !viewEntry().invoiceable) { var c = $('inv'); c.classList.add('ask'); if (!wasInv) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+      };
       box.appendChild(b);
     });
+    renderInv();
+  }
+
+  function renderInv() {
+    var e = viewEntry(), c = $('inv');
+    if (!needsInvoice(e.type)) { c.hidden = true; c.classList.remove('ask'); return; }
+    c.hidden = false;
+    var v = e.invoiceable || '';
+    c.innerHTML = '<div class="q">Is this ' + (e.type === 'Travel' ? 'travel' : 'site work') + ' invoiceable to a client?<span>Needed for the monthly report, so admin and finance can plan travel.</span></div>' +
+      '<div class="yn"><button type="button" class="y' + (v === 'Yes' ? ' on' : '') + '">Yes, invoiceable</button><button type="button" class="n' + (v === 'No' ? ' on' : '') + '">No</button></div>' +
+      (v === 'Yes' ? '<input id="client" maxlength="200" placeholder="Client / job (optional), e.g. IOCL Panipat – UT survey">' : '');
+    if (v) c.classList.remove('ask');
+    var set = function (val) { touch(function (x) { x.invoiceable = val; }); renderInv(); renderNotice(); renderBar(); if (val === 'Yes') { var i = $('client'); if (i) i.focus(); } };
+    c.querySelector('.y').onclick = function () { set('Yes'); };
+    c.querySelector('.n').onclick = function () { set('No'); };
+    var ci = $('client');
+    if (ci) { ci.value = e.client || ''; ci.oninput = function () { var v2 = ci.value; touch(function (x) { x.client = v2; }); renderNotice(); renderBar(); }; }
   }
 
   function autosize(ta) { ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 2) + 'px'; }
 
   function renderSlots() {
     var e = viewEntry(), box = $('slots'); box.innerHTML = '';
-    if (e.type === 'Leave') {
-      box.innerHTML = '<div class="leave"><b>On leave today 🌴</b>Nothing to fill in. Just tap <b>Submit day</b>.</div>';
+    if (isLeave(e.type)) {
+      box.innerHTML = '<div class="leave"><b>Leave / comp-off 🌴</b>Nothing to fill in. Just tap <b>Submit day</b>.</div>';
       return;
     }
+    var L = mins(lunchOf(e)), lunchDone = false;
     var sl = cfg().slots, i = 0;
     var groups = { early: [], late: [] };
     sl.forEach(function (s, k) { var g = groupOf(s); if (g !== 'core') groups[g].push(k); });
@@ -337,25 +393,46 @@
     while (i < sl.length) {
       var g = groupOf(sl[i]);
       if (g !== lastGroup) { if (g !== 'core') fold(g); lastGroup = g; }
+      if (!lunchDone && mins(sl[i].start) >= L) { box.appendChild(lunchRow(e)); lunchDone = true; }
       if (g !== 'core' && !openGroups[g + cur]) { i++; continue; }
-      if (sl[i].lunch) {
-        var j = i; while (j + 1 < sl.length && sl[j + 1].lunch) j++;
-        var l = document.createElement('div'); l.className = 'lunch';
-        l.innerHTML = '<div class="time"><b>' + clock(sl[i].start) + '</b><small>' + clock(sl[j].end) + '</small></div><div>Lunch break</div>';
-        box.appendChild(l); i = j + 1; continue;
-      }
+      if (covered(e, i)) { i++; continue; }
       box.appendChild(slotRow(i, e)); i++;
     }
+    if (!lunchDone) box.appendChild(lunchRow(e));
     box.querySelectorAll('textarea').forEach(autosize);
   }
 
-  function prevWorkIdx(i) { var sl = cfg().slots; for (var k = i - 1; k >= 0; k--) if (!sl[k].lunch) return k; return -1; }
-  function nextWorkIdx(i) { var sl = cfg().slots; for (var k = i + 1; k < sl.length; k++) if (!sl[k].lunch) return k; return -1; }
+  function lunchRow(e) {
+    var lc = LC(), L = mins(lunchOf(e)), lo = mins(lc.earliest), hi = mins(lc.latest);
+    var row = document.createElement('div'); row.className = 'lunch'; row.id = 'lunchRow';
+    row.innerHTML = '<div class="time"><b id="lS">' + clock(hm(L)) + '</b><small id="lE">' + clock(hm(L + lc.minutes)) + '</small></div>' +
+      '<div class="lg"><div>Lunch break <span>' + lc.minutes + ' min · slide or tap ▲▼ to move it</span></div>' +
+      '<input type="range" id="lR" min="' + lo + '" max="' + hi + '" step="' + lc.step + '" value="' + L + '" aria-label="Lunch start time"></div>' +
+      '<div class="lb"><button type="button" id="lUp" aria-label="Move lunch earlier"' + (L <= lo ? ' disabled' : '') + '>▲</button>' +
+      '<button type="button" id="lDn" aria-label="Move lunch later"' + (L >= hi ? ' disabled' : '') + '>▼</button></div>';
+    var r = row.querySelector('#lR');
+    var commit = function (m, focusId) {
+      m = Math.max(lo, Math.min(hi, m));
+      touch(function (x) { x.lunch = hm(m); });
+      renderSlots(); refreshSameButtons(); renderNotice(); renderBar();
+      var f = focusId && document.getElementById(focusId); if (f && !f.disabled) f.focus();
+    };
+    r.oninput = function () { var m = +r.value; row.querySelector('#lS').textContent = clock(hm(m)); row.querySelector('#lE').textContent = clock(hm(m + lc.minutes)); };
+    r.onchange = function () { commit(+r.value, 'lR'); };
+    row.querySelector('#lUp').onclick = function () { commit(L - lc.step, 'lUp'); };
+    row.querySelector('#lDn').onclick = function () { commit(L + lc.step, 'lDn'); };
+    return row;
+  }
+
+  function prevWorkIdx(i) { var e = viewEntry(); for (var k = i - 1; k >= 0; k--) if (!covered(e, k)) return k; return -1; }
+  function nextWorkIdx(i) { var e = viewEntry(); for (var k = i + 1; k < cfg().slots.length; k++) if (!covered(e, k)) return k; return -1; }
 
   function slotRow(i, e) {
     var s = cfg().slots[i];
     var row = document.createElement('div'); row.className = 'slot' + (sv(e, i).trim() ? ' filled' : ''); row.dataset.i = i;
-    row.innerHTML = '<div class="time"><b>' + clock(s.start) + '</b><small>' + clock(s.end) + '</small></div>';
+    var a = mins(s.start), Lm = mins(lunchOf(e)), Em = Lm + LC().minutes, ws = a, we = a + 30;
+    if (lunchOverlap(e, i) > 0) { if (Lm > a) we = Lm; else ws = Em; }
+    row.innerHTML = '<div class="time"><b>' + clock(hm(ws)) + '</b><small' + (we - ws < 30 ? ' class="part" title="Part of this slot is lunch"' : '') + '>' + clock(hm(we)) + '</small></div>';
     var ta = document.createElement('textarea'); ta.rows = 1; ta.value = sv(e, i);
     ta.placeholder = s.start === (cfg().coreStart || '09:00') ? 'What did you work on?' : '';
     ta.setAttribute('aria-label', 'Work from ' + clock(s.start) + ' to ' + clock(s.end));
@@ -410,10 +487,10 @@
     var e = viewEntry(), btn = $('submit'), prog = $('prog');
     if (tab !== 'log') { $('bar').hidden = true; return; }
     $('bar').hidden = false;
-    if (e.type === 'Leave') { prog.innerHTML = '<b>Leave</b><div>No slots needed</div>'; }
+    if (isLeave(e.type)) { prog.innerHTML = '<b>Leave / comp-off</b><div>No slots needed</div>'; }
     else {
-      var f = filledCount(e), w = coreSlots();
-      prog.innerHTML = '<b>' + (f / 2) + ' h</b> logged · ' + f + ' slot' + (f === 1 ? '' : 's') + '<div class="meter"><i style="width:' + Math.min(100, Math.round(100 * f / w)) + '%"></i></div>';
+      var wm = workMinutes(e), f = filledCount(e);
+      prog.innerHTML = '<b>' + fmtH(wm) + ' h</b> logged · ' + f + ' slot' + (f === 1 ? '' : 's') + '<div class="meter"><i style="width:' + Math.min(100, Math.round(100 * wm / coreMinutes())) + '%"></i></div>';
     }
     var st = entry(cur) ? entry(cur).state : 'new';
     btn.disabled = st === 'pending' && syncing;
@@ -439,7 +516,7 @@
     api('get', { date: d }).then(function (r) {
       var now = entry(asked);
       if (now && now.state !== 'synced' && now.state !== 'error') return; // user started typing meanwhile
-      if (r.entry) { S.entries[asked] = { type: r.entry.type, map: r.entry.map || {}, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
+      if (r.entry) { S.entries[asked] = { type: r.entry.type, map: r.entry.map || {}, invoiceable: r.entry.invoiceable || '', client: r.entry.client || '', lunch: r.entry.lunch || LC().start, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
       else if (now && now.state === 'synced') delete S.entries[asked];
       persist();
       delete openGroups['early' + asked]; delete openGroups['late' + asked];
@@ -450,7 +527,12 @@
   // ---------- submit & sync ----------
   function submit() {
     var e = viewEntry();
-    if (e.type !== 'Leave' && filledCount(e) === 0) return toast('Write at least one slot, or choose Leave.');
+    if (!isLeave(e.type) && filledCount(e) === 0) return toast('Write at least one slot, or choose Leave / Comp Off.');
+    if (needsInvoice(e.type) && !e.invoiceable) {
+      var c = $('inv'); c.classList.remove('ask'); void c.offsetWidth; c.classList.add('ask');
+      c.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return toast('Please answer: is this work invoiceable?');
+    }
     if (entry(cur) && entry(cur).state === 'synced') return toast('Already submitted. Edit something to update it.');
     var x = S.entries[cur] || (S.entries[cur] = e);
     x.state = 'pending'; x.editedAt = Date.now(); persist();
@@ -471,7 +553,7 @@
       chain = chain.then(function () {
         if (stop) return;
         var e = normalize(S.entries[d]), sentEdit = e.editedAt;
-        return api('save', { entry: { date: d, type: e.type, map: e.map, summary: e.summary } }).then(function (r) {
+        return api('save', { entry: { date: d, type: e.type, map: e.map, summary: e.summary, invoiceable: e.invoiceable || '', client: e.client || '', lunch: lunchOf(e) } }).then(function (r) {
           var now = S.entries[d];
           if (now && now.editedAt === sentEdit) { now.state = 'synced'; now.updatedAt = r.updatedAt; now.hours = r.hours; delete now.error; }
           sentOk++;
@@ -504,7 +586,7 @@
     var list = $('histList'); list.innerHTML = '';
     var h = S.history || {}, hol = cfg().holidays || {};
     var logged = 0, hours = 0, missing = 0;
-    function isBlankDraft(e) { return e && e.state === 'draft' && e.type !== 'Leave' && !filledCount(e) && !(e.summary || '').trim() && !e.updatedAt; }
+    function isBlankDraft(e) { return e && e.state === 'draft' && !isLeave(e.type) && !filledCount(e) && !(e.summary || '').trim() && !e.updatedAt; }
     var firstDay = null;
     Object.keys(h).concat(Object.keys(S.entries).filter(function (d) { return !isBlankDraft(S.entries[d]); }))
       .forEach(function (d) { if (!firstDay || d < firstDay) firstDay = d; });
@@ -520,20 +602,20 @@
       else if (loc && loc.state === 'error') badge = '<span class="badge b-wait">Needs attention</span>';
       else if (srv || (loc && loc.state === 'synced')) {
         var x = srv || loc;
-        badge = '<span class="badge b-ok">' + (x.type === 'Leave' ? 'Leave' : (x.hours != null ? x.hours : filledCount(x) / 2) + ' h') + '</span>';
+        badge = '<span class="badge b-ok">' + (isLeave(x.type) ? 'Leave' : (x.hours != null ? Math.round(x.hours * 100) / 100 : fmtH(workMinutes(x))) + ' h') + '</span>';
       }
       else if (hol[d]) badge = '<span class="badge b-off">' + esc(hol[d]) + '</span>';
       else if (!isWork) badge = '<span class="badge b-off">' + DAYS[wday(d)] + '</span>';
       else badge = '<span class="badge b-miss">Not logged</span>';
       if (src) {
-        if (src.type === 'Leave') snippet = 'On leave';
+        if (isLeave(src.type)) snippet = 'Leave / comp-off';
         else {
           var mp = src.map || {}, ks = Object.keys(mp).sort(), first = ks.length ? mp[ks.filter(function (k) { return k >= (cfg().coreStart || '09:00'); })[0] || ks[0]] : '';
           snippet = src.type + (first ? ' · ' + first : '');
         }
         if (src.summary) snippet = '⚑ ' + src.summary;
       }
-      if (srv || (loc && loc.state === 'synced')) { var xx = srv || loc; logged++; hours += xx.hours != null ? Number(xx.hours) : filledCount(xx) / 2; }
+      if (srv || (loc && loc.state === 'synced')) { var xx = srv || loc; logged++; hours += xx.hours != null ? Number(xx.hours) : workMinutes(xx) / 60; }
       if (isWork && d < today() && firstDay && d >= firstDay && !srv && !(loc && loc.state !== 'draft')) missing++;
       if (!isWork && !src) row.classList.add('rest');
       row.innerHTML = '<div class="d">' + pretty(d).split(', ')[1] + '<small>' + DAYS[wday(d)] + (d === today() ? ' · today' : '') + '</small></div><div class="s">' + esc(snippet) + '</div>' + badge;
