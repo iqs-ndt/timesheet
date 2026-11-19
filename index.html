@@ -497,7 +497,8 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     c.hidden = false;
     var v = e.invoiceable || '';
     var md = Number(e.manDays) || 0, opts = cfg().manDays || [0.25, 0.5, 1];
-    c.innerHTML = '<div class="yn"><button type="button" class="y' + (v === 'Yes' ? ' on' : '') + '">Invoiceable</button><button type="button" class="n' + (v === 'No' ? ' on' : '') + '">Non-invoiceable</button></div>' +
+    c.innerHTML = (e.type === 'Office' || e.type === 'WFH' ? '<div class="q">Is today\'s work OR part of it invoiceable to client?</div>' : '') +
+      '<div class="yn"><button type="button" class="y' + (v === 'Yes' ? ' on' : '') + '">Invoiceable</button><button type="button" class="n' + (v === 'No' ? ' on' : '') + '">Non-invoiceable</button></div>' +
       (v === 'Yes' ? '<div class="md">' + opts.map(function (o) { return '<button type="button" data-md="' + o + '"' + (md === o ? ' class="on"' : '') + '>' + o + ' Man day</button>'; }).join('') + '</div>' +
         '<input id="client" maxlength="200" placeholder="Client / job (optional)">' : '');
     if (v && (v === 'No' || md)) c.classList.remove('ask');
