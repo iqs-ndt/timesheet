@@ -347,7 +347,13 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
 
   function boot() {
     if (!S.token) { gate('Open your personal link', 'Open the personal timesheet link your admin sent you (by email or WhatsApp), or paste it below.'); askLink(); return; }
-    if (S.profile && S.config) { start(); hello().then(renderHeader).catch(function () {}); return; }
+    if (S.profile && S.config) {
+      var sig0 = JSON.stringify(S.config);
+      start();
+      // settings changed on the server (new options, slots, lunch…): redraw now, unless the person is mid-typing
+      hello().then(function () { renderHeader(); var ae = document.activeElement; if (JSON.stringify(S.config) !== sig0 && !(ae && /^(TEXTAREA|INPUT)$/.test(ae.tagName))) renderLog(); }).catch(function () {});
+      return;
+    }
     gate('Setting up…', 'Connecting to QInsight…');
     hello().then(start).catch(function (e) {
       if (e.code) return;
