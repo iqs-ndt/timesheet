@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>QInsight · Claim review</title>
+<link rel="icon" href="icon-192.png">
+<script src="config.js"></script>
+<style>
+  :root{--ink:#2c3e50;--navy:#0e2841;--muted:#5a6a7a;--line:#dde3ea;--bg:#f8f9fb;--orange:#e97132;--amber:#f59a35;--teal2:#156082;--green:#1f8a5b;--red:#c0392b}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Arial,"Helvetica Neue",Helvetica,sans-serif}
+  button,input,textarea{font:inherit}
+  [hidden]{display:none!important}
+  .wrap{max-width:760px;margin:0 auto;padding:0 14px}
+  header{background:#fff;box-shadow:0 1px 0 var(--line);position:relative;padding:20px 0 12px}
+  .cb{position:absolute;display:block}.cb::before,.cb::after{content:"";position:absolute;display:block}
+  .cb-tl{left:0;top:0}.cb-tl::before{left:0;top:0;width:110px;height:7px;background:var(--navy)}.cb-tl::after{left:0;top:7px;width:74px;height:5px;background:var(--amber)}
+  .hrow{display:flex;align-items:center;gap:12px}.brand{height:30px}
+  .ttl{font-weight:700;color:var(--navy);font-size:17px}.ttl::after{content:"";display:block;width:28px;height:3px;background:var(--orange);margin-top:4px}
+  .sub{color:var(--muted);font-size:13px;margin-top:3px}
+  main{padding:14px 0 120px}
+  .card{background:#fff;border:1px solid #e6ebf0;border-radius:12px;box-shadow:-3px 3px 13px rgba(0,0,0,.05);padding:14px;margin-bottom:12px}
+  h2{margin:0 0 4px;color:var(--navy);font-size:20px}
+  h3{margin:0 0 8px;color:var(--navy);font-size:15px}
+  .st{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:3px 10px;vertical-align:middle;margin-left:6px}
+  .st-p{background:#fff5df;color:#7a5508}.st-a{background:#e8f1fb;color:#174f86}.st-r{background:#fdecea;color:#8e2a1f}.st-d{background:#e7f6ef;color:#17694a}
+  .kv{width:100%;border-collapse:collapse}.kv td{padding:6px 0;border-bottom:1px solid #eef2f5;vertical-align:top}.kv td:first-child{color:var(--muted);width:38%;padding-right:10px}.kv td:last-child{font-weight:600}
+  .banner{border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:14px}.warn{background:#fff5df;color:#7a5508}.err{background:#fdecea;color:#8e2a1f}.ok{background:#e7f6ef;color:#17694a}.info{background:#eef4f8;color:#2c5566}
+  .tbl{width:100%;border-collapse:collapse;font-size:14px}.tbl th{background:var(--navy);color:#fff;text-align:left;padding:7px 8px;font-size:12.5px}.tbl td{padding:7px 8px;border-bottom:1px solid #eef2f5;vertical-align:top}
+  .tbl td.r,.tbl th.r{text-align:right;white-space:nowrap}
+  .muted{color:var(--muted);font-size:13px}
+  .rc{display:inline-flex;align-items:center;gap:4px;border:1px solid #c9d6e1;background:#fff;border-radius:7px;padding:3px 8px;font-size:12.5px;font-weight:700;color:var(--teal2);margin:2px 4px 2px 0;cursor:pointer}
+  .nr{color:#b3541e;font-size:12px;font-weight:600}
+  .trip{border-left:5px solid var(--orange);padding-left:10px;margin:14px 0 6px}
+  .sum table{border-collapse:collapse}.sum td{padding:6px 0;font-size:14.5px}.sum td:last-child{text-align:right;font-weight:700;white-space:nowrap}.sum .tot td{border-top:2px solid var(--navy);color:var(--navy);font-size:16px;padding-top:9px}.sum .net td{color:var(--orange);font-size:16px}
+  .act h3{margin-bottom:10px}
+  .f{display:block;margin-bottom:10px}.f span{display:block;font-size:13px;font-weight:700;color:#3d5164;margin-bottom:4px}
+  .f input,.f textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;font-size:15px;background:#fff}
+  .f textarea{min-height:70px;resize:vertical}
+  .amts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+  .btns{display:flex;gap:10px;margin-top:6px}.btns button{flex:1;border:0;border-radius:11px;padding:14px;font-weight:700;font-size:16px;color:#fff;cursor:pointer}
+  .approve{background:var(--green)}.reject{background:var(--red)}.paybtn{background:var(--navy)}
+  .btns button:disabled{opacity:.6}
+  #modal{position:fixed;inset:0;background:rgba(10,20,30,.85);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
+  #modal img{max-width:100%;max-height:86vh;border-radius:8px;background:#fff}
+  #modal button{position:absolute;top:12px;right:14px;border:0;background:#fff;border-radius:99px;width:40px;height:40px;font-size:22px;cursor:pointer}
+  .center{text-align:center;padding:60px 20px;color:var(--muted)}
+  @media print{.act,#modal{display:none!important}}
+</style>
+</head>
+<body>
+<header><i class="cb cb-tl"></i><div class="wrap hrow"><img class="brand" src="logo.png" alt="QInsight Consol Pvt Ltd"><div><div class="ttl" id="ttl">Claim review</div><div class="sub" id="sub"></div></div></div></header>
+<main class="wrap" id="main"><div class="center">Loading…</div></main>
+<div id="modal" hidden><button type="button" id="mx" aria-label="Close">×</button><img id="mimg" alt="Receipt"></div>
+<script>
+(function () {
+  'use strict';
+  var API = (window.QTS_CONFIG || {}).API_URL || '';
+  var key = new URLSearchParams(location.search).get('k') || '';
+  var V = null, main = document.getElementById('main');
+  var DN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pretty(s) { if (!s) return ''; var p = s.split('-'), d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); return DN[d.getUTCDay()] + ', ' + (+p[2]) + ' ' + MN[+p[1] - 1] + ' ' + p[0]; }
+  function span(a, b) { return !b || a === b ? pretty(a) : pretty(a) + ' – ' + pretty(b); }
+  function r2(n) { return Math.round(Number(n || 0) * 100) / 100; }
+  function amt(n, cur) { n = r2(n); var neg = n < 0; n = Math.abs(n); var s = n.toFixed(2).replace(/\.00$/, ''), p = s.split('.'), x = p[0];
+    if (!cur || cur === 'INR') { var l = x.slice(-3), r = x.slice(0, -3); if (r) l = ',' + l; x = r.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + l; } else x = x.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (neg ? '−' : '') + x + (p[1] ? '.' + p[1] : ''); }
+  function money(n, cur) { return (cur || 'INR') + ' ' + amt(n, cur); }
+  function moneyObj(o) { var ks = Object.keys(o || {}).filter(function (k) { return r2(o[k]) !== 0; }); return ks.length ? ks.map(function (k) { return money(o[k], k); }).join(' · ') : money(0, Object.keys(o || {})[0] || 'INR'); }
+  function net(a, b) { var n = {}; Object.keys(a || {}).forEach(function (k) { n[k] = r2((n[k] || 0) + Number(a[k])); }); Object.keys(b || {}).forEach(function (k) { n[k] = r2((n[k] || 0) - Number(b[k])); }); return n; }
+  function stCls(s) { return /pending/i.test(s) ? 'st-p' : /approved/i.test(s) ? 'st-a' : /reject/i.test(s) ? 'st-r' : 'st-d'; }
+
+  function api(action, extra) {
+    if (!API) return Promise.reject(new Error('This page is not configured (config.js).'));
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action: action, key: key }, extra || {})), redirect: 'follow' })
+      .catch(function () { throw new Error('Could not reach the server. Check your internet connection and try again.'); })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong'); return j; });
+  }
+
+  function files(fs) {
+    if (!fs || !fs.length) return ' <span class="nr">no receipt</span>';
+    return ' ' + fs.map(function (f) { return '<span class="rc" data-fid="' + esc(f.id) + '" data-mime="' + esc(f.mime) + '">📎 ' + (/pdf/.test(f.mime) ? 'PDF' : 'Photo') + '</span>'; }).join('');
+  }
+
+  function render() {
+    var d = V.data || {}, c = d.calc || {}, isAdv = V.kind === 'advance', h = '';
+    document.getElementById('ttl').textContent = isAdv ? 'Advance request' : 'Claim review';
+    document.getElementById('sub').textContent = V.no + ' · ' + V.member.name;
+    h += '<div class="card"><h2>' + esc(V.no) + '<span class="st ' + stCls(V.status) + '">' + esc(V.status) + '</span></h2>' +
+      '<div class="muted">' + esc(V.type) + (V.revision > 1 ? ' · revision ' + esc(V.revision) : '') + ' · submitted ' + esc(String(V.submitted).slice(0, 16)) + '</div></div>';
+    if (d.prevFY) h += '<div class="banner err"><b>Previous financial year.</b> This includes dates before ' + esc(pretty(V.fyStart)) + '. Accepting it needs your explicit approval.</div>';
+    if (V.status === 'Rejected') h += '<div class="banner err">Rejected by ' + esc(V.decidedBy) + (V.decidedOn ? ' on ' + esc(String(V.decidedOn).slice(0, 10)) : '') + (V.comment ? ': “' + esc(V.comment) + '”' : '') + '</div>';
+    if (V.status === 'Approved' || V.status === 'Paid') h += '<div class="banner ok">Approved by ' + esc(V.decidedBy) + (V.decidedOn ? ' on ' + esc(String(V.decidedOn).slice(0, 10)) : '') + (V.comment ? ': “' + esc(V.comment) + '”' : '') + '</div>';
+    if (V.status === 'Paid') h += '<div class="banner ok"><b>Paid</b> ' + esc(V.paidText || '') + ' on ' + esc(pretty(V.paidOn)) + (V.paymentRef ? ' · ref ' + esc(V.paymentRef) : '') + '</div>';
+
+    h += '<div class="card"><table class="kv"><tr><td>Employee</td><td>' + esc(V.member.name) + ' · ' + esc(V.member.dept) + ' (' + esc(V.member.id) + ')</td></tr><tr><td>Approver</td><td>' + esc(V.manager) + '</td></tr>';
+    if (isAdv) {
+      h += '<tr><td>Travel</td><td>' + esc(span(d.start, d.end)) + '</td></tr><tr><td>Location</td><td>' + esc(d.location) + '</td></tr><tr><td>Customer(s)</td><td>' + esc((d.customers || []).join(', ')) + '</td></tr>' +
+        '<tr><td>Mode of travel</td><td>' + esc(d.mode + (d.modeOther ? ': ' + d.modeOther : '')) + '</td></tr><tr><td>Purpose</td><td>' + esc(d.purpose) + '</td></tr><tr><td>Invoiceable to customer</td><td>' + esc(d.inv) + '</td></tr>' +
+        '<tr><td>Advance required</td><td style="font-size:17px;color:var(--navy)">' + esc(money(d.amount, d.currency)) + '</td></tr>' +
+        (c.approved !== '' && c.approved != null ? '<tr><td>Approved</td><td>' + esc(money(c.approved, d.currency)) + '</td></tr>' : '') +
+        (V.settledBy ? '<tr><td>Adjusted in claim</td><td>' + esc(V.settledBy) + '</td></tr>' : '');
+    } else {
+      h += '<tr><td>Period</td><td>' + esc(span(d.from, d.to)) + '</td></tr>';
+    }
+    if (d.note) h += '<tr><td>Note</td><td>' + esc(d.note) + '</td></tr>';
+    h += '</table></div>';
+
+    if (!isAdv && d.kind === 'local') {
+      h += '<div class="card"><h3>Visits</h3><div style="overflow-x:auto"><table class="tbl"><tr><th>#</th><th>Date &amp; time</th><th>Where · customer · purpose</th><th>Mode</th><th class="r">Km / ₹</th></tr>';
+      d.visits.forEach(function (v, i) {
+        var a = v.mode === 'Public transport' ? v.tickets.map(function (t) { return '₹ ' + amt(t.amount) + (t.details ? ' <span class="muted">' + esc(t.details) + '</span>' : '') + files(t.files); }).join('<br>') : esc(v.km + ' km');
+        h += '<tr><td>' + (i + 1) + '</td><td>' + esc(span(v.start, v.end)) + '<br><span class="muted">' + esc(v.tStart + '–' + v.tEnd + ' · ' + v.day + ' day' + (v.nights ? ' · ' + v.nights + ' night' + (v.nights > 1 ? 's' : '') : '')) + '</span></td>' +
+          '<td>' + esc(v.location) + '<br><span class="muted">' + esc(v.customers.join(', ')) + ' · ' + esc(v.purpose) + (v.inv === 'Yes' ? ' · <b>invoiceable</b>' : '') + '</span></td><td>' + esc(v.mode) + '</td><td class="r">' + a + '</td></tr>';
+      });
+      h += '</table></div>';
+      var it = c.items || {}, rows = [];
+      if (it.bikeKm) rows.push(['Bike · ' + it.bikeKm + ' km', it.bike]);
+      if (it.carKm) rows.push(['Car · ' + it.carKm + ' km', it.car]);
+      if (it.publicTransport) rows.push(['Public transport', it.publicTransport]);
+      if (it.allowance) rows.push(['Daily allowance · ' + it.fullDays + ' full × ' + it.rates.full + (it.halfDays ? ' + ' + it.halfDays + ' half × ' + it.rates.half : ''), it.allowance]);
+      if (it.overnight) rows.push(['Overnight stay · ' + it.nights + ' × ' + it.rates.night, it.overnight]);
+      (d.oop || []).forEach(function (t) { rows.push(['Out-of-pocket: ' + t.details + (t.date ? ' (' + pretty(t.date) + ')' : ''), t.amount, t.files]); });
+      h += '<h3 style="margin-top:14px">Amounts</h3><table class="tbl">' + rows.map(function (r) { return '<tr><td>' + esc(r[0]) + (r[2] ? files(r[2]) : '') + '</td><td class="r">₹ ' + amt(r[1]) + '</td></tr>'; }).join('') + '</table></div>';
+    }
+    if (!isAdv && d.kind === 'outstation') {
+      h += '<div class="card"><h3>Trips</h3>';
+      d.trips.forEach(function (t, i) {
+        h += '<div class="trip"><b style="color:var(--navy)">Trip ' + (i + 1) + ': ' + esc(t.location) + '</b> · ' + esc(span(t.start, t.end)) + '<br><span class="muted">' + esc(t.customers.join(', ')) + ' · ' + esc(t.purpose) + (t.inv === 'Yes' ? ' · <b>invoiceable</b>' : '') + '</span></div>' +
+          '<div style="overflow-x:auto"><table class="tbl"><tr><th>Expense head</th><th>Details</th><th class="r">' + esc(t.currency) + '</th></tr>';
+        (V.heads || []).forEach(function (hd) {
+          (t.heads[hd[0]] || []).forEach(function (x) { h += '<tr><td class="muted">' + esc(hd[1]) + '</td><td>' + esc(x.details || '') + (x.date ? ' <span class="muted">(' + esc(pretty(x.date)) + ')</span>' : '') + files(x.files) + '</td><td class="r">' + amt(x.amount, t.currency) + '</td></tr>'; });
+        });
+        h += '<tr><td colspan="2"><b>Trip total</b></td><td class="r"><b>' + esc(money((c.trips || [])[i] ? c.trips[i].total : 0, t.currency)) + '</b></td></tr></table></div>';
+      });
+      h += '</div>';
+    }
+    if (!isAdv) {
+      var advs = d.advances || [], rows2 = [['Total claimed', moneyObj(c.claimed), 'tot']];
+      if (advs.length) rows2.push(['Advance adjusted (' + advs.join(', ') + ')', '− ' + moneyObj(c.advance)]);
+      if (c.approved) rows2.push(['Approved', moneyObj(c.approved)]);
+      var n = net(c.approved || c.claimed, c.advance);
+      if (advs.length || c.approved) rows2.push([Object.keys(n).some(function (k) { return n[k] < 0; }) ? 'Net (− = employee returns)' : 'Net payable to employee', moneyObj(n), 'net']);
+      h += '<div class="card sum"><table style="width:100%">' + rows2.map(function (r) { return '<tr class="' + (r[2] || '') + '"><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table></div>';
+    }
+
+    // actions
+    if (V.role === 'approve' && V.status === 'Pending approval') {
+      var base = isAdv ? (function () { var o = {}; o[d.currency] = d.amount; return o; })() : c.claimed;
+      h += '<div class="card act"><h3>Your decision</h3><div class="amts">' + Object.keys(base).map(function (cu) {
+        return '<label class="f"><span>Approved amount (' + esc(cu) + ')</span><input data-ap="' + esc(cu) + '" inputmode="decimal" value="' + esc(base[cu]) + '"></label>';
+      }).join('') + '</div><div class="muted" style="margin:-4px 0 10px">Lower it to approve a smaller amount. It cannot be more than claimed.</div>' +
+        '<label class="f"><span>Comment (needed if you reject)</span><textarea id="cmt" placeholder="e.g. Please attach the hotel invoice"></textarea></label>' +
+        '<div class="btns"><button type="button" class="reject" id="rej">Reject</button><button type="button" class="approve" id="apr">Approve</button></div><div id="amsg"></div></div>';
+    } else if (V.role === 'approve') {
+      h += '<div class="banner info">No action needed: this is ' + esc(V.status.toLowerCase()) + '.</div>';
+    }
+    if (V.role === 'pay' && V.status === 'Approved') {
+      var due = isAdv ? (function () { var o = {}; o[d.currency] = c.approved; return o; })() : net(c.approved || c.claimed, c.advance);
+      h += '<div class="card act"><h3>Payment</h3><div class="amts">' + Object.keys(due).map(function (cu) {
+        return '<label class="f"><span>Amount paid (' + esc(cu) + ')' + (due[cu] < 0 ? ' · employee returns ' + esc(amt(-due[cu], cu)) : '') + '</span><input data-pd="' + esc(cu) + '" inputmode="decimal" value="' + esc(Math.max(0, due[cu])) + '"></label>';
+      }).join('') + '</div><div class="amts"><label class="f"><span>Paid on</span><input type="date" id="pdon" value="' + esc(V.today) + '" max="' + esc(V.today) + '"></label>' +
+        '<label class="f"><span>Payment reference (UTR / cheque / cash)</span><input id="pref" placeholder="e.g. NEFT UTR"></label></div>' +
+        '<div class="btns"><button type="button" class="paybtn" id="pay">Mark as paid</button></div><div id="pmsg"></div></div>';
+    } else if (V.role === 'pay' && V.status === 'Pending approval') {
+      h += '<div class="banner info">Waiting for the manager\'s approval. You will get an email with a "Mark as paid" button once it is approved.</div>';
+    }
+    main.innerHTML = h;
+    wire();
+  }
+
+  function wire() {
+    main.querySelectorAll('.rc').forEach(function (b) { b.onclick = function () { openReceipt(b.getAttribute('data-fid'), b.getAttribute('data-mime')); }; });
+    var apr = document.getElementById('apr'), rej = document.getElementById('rej'), pay = document.getElementById('pay');
+    if (apr) apr.onclick = function () { decide('Approved'); };
+    if (rej) rej.onclick = function () { decide('Rejected'); };
+    if (pay) pay.onclick = markPaid;
+  }
+  function decide(dec) {
+    var cmt = document.getElementById('cmt').value.trim(), approved = {}, msg = document.getElementById('amsg');
+    if (dec === 'Rejected' && !cmt) { msg.innerHTML = '<div class="banner err" style="margin-top:10px">Please write a short reason so the employee knows what to fix.</div>'; document.getElementById('cmt').focus(); return; }
+    main.querySelectorAll('[data-ap]').forEach(function (i) { approved[i.getAttribute('data-ap')] = i.value; });
+    if (dec === 'Approved' && !confirm('Approve ' + moneyObj(Object.keys(approved).reduce(function (o, k) { o[k] = Number(String(approved[k]).replace(/[, ]/g, '')); return o; }, {})) + '?')) return;
+    if (dec === 'Rejected' && !confirm('Reject this and send it back to ' + V.member.name + '?')) return;
+    busy(true);
+    api('rvDecide', { decision: dec, approved: approved, comment: cmt }).then(function () { return load(); })
+      .then(function () { window.scrollTo(0, 0); main.insertAdjacentHTML('afterbegin', '<div class="banner ok"><b>' + (dec === 'Approved' ? 'Approved' : 'Rejected') + '.</b> ' + esc(V.member.name) + ' and accounts have been emailed.</div>'); })
+      .catch(function (e) { busy(false); msg.innerHTML = '<div class="banner err" style="margin-top:10px">' + esc(e.message) + '</div>'; });
+  }
+  function markPaid() {
+    var paid = {}, msg = document.getElementById('pmsg');
+    main.querySelectorAll('[data-pd]').forEach(function (i) { paid[i.getAttribute('data-pd')] = i.value; });
+    var on = document.getElementById('pdon').value, ref = document.getElementById('pref').value.trim();
+    if (!on) { msg.innerHTML = '<div class="banner err" style="margin-top:10px">Please enter the payment date.</div>'; return; }
+    busy(true);
+    api('rvPay', { paid: paid, paidOn: on, ref: ref }).then(function () { return load(); })
+      .then(function () { window.scrollTo(0, 0); main.insertAdjacentHTML('afterbegin', '<div class="banner ok"><b>Marked as paid.</b> ' + esc(V.member.name) + ' has been emailed.</div>'); })
+      .catch(function (e) { busy(false); msg.innerHTML = '<div class="banner err" style="margin-top:10px">' + esc(e.message) + '</div>'; });
+  }
+  function busy(on) { main.querySelectorAll('.btns button').forEach(function (b) { b.disabled = on; }); }
+
+  function openReceipt(id, mime) {
+    var w = /pdf/.test(mime) ? window.open('', '_blank') : null;
+    api('rvFile', { fileId: id }).then(function (r) {
+      var bin = atob(r.file.b64), u8 = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      var url = URL.createObjectURL(new Blob([u8], { type: r.file.mime }));
+      if (/^image\//.test(r.file.mime)) { document.getElementById('mimg').src = url; document.getElementById('modal').hidden = false; }
+      else if (w) w.location = url; else window.open(url, '_blank');
+    }).catch(function (e) { if (w) w.close(); alert(e.message); });
+  }
+  document.getElementById('mx').onclick = function () { document.getElementById('modal').hidden = true; };
+  document.getElementById('modal').onclick = function (e) { if (e.target.id === 'modal') this.hidden = true; };
+
+  function load() {
+    return api('rvGet').then(function (r) { V = r.view; render(); });
+  }
+  if (!key) main.innerHTML = '<div class="center">This link is incomplete. Please open it again from the email.</div>';
+  else load().catch(function (e) { main.innerHTML = '<div class="card"><div class="banner err">' + esc(e.message) + '</div><div class="muted">If you got a newer email about this claim, use the link in that email.</div></div>'; });
+})();
+</script>
+</body>
+</html>

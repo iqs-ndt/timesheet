@@ -198,11 +198,11 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     <div class="wrap">
       <div class="hrow">
         <img class="brand" src="logo.png" alt="QInsight Consol Pvt Ltd">
-        <div class="grow"><div class="ttl">Daily log</div><div class="who" id="who"></div></div>
+        <div class="grow"><div class="ttl" id="ttl">Daily log</div><div class="who" id="who"></div></div>
         <button class="install" id="installBtn" hidden>Install</button>
         <button class="pill" id="pill" title="Tap to sync now"><i></i><span>…</span></button>
       </div>
-      <nav class="tabs"><button data-tab="log" class="on">Log my day</button><button data-tab="hist">My history</button></nav>
+      <nav class="tabs"><button data-tab="log" class="on">Log my day</button><button data-tab="hist">My history</button><button data-tab="claims" id="claimsTab" hidden>Claims</button></nav>
     </div>
   </header>
 
@@ -228,6 +228,8 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     <div class="card hist" id="histList"></div>
     <p class="muted foot">Only you can see this. Tap any day to view or edit it.</p>
   </main>
+
+  <main id="tab-claims" class="wrap" hidden></main>
 
   <div class="bar" id="bar">
     <i class="cb cb-br"></i>
@@ -440,6 +442,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     if (!S.profile) return;
     $('who').textContent = S.profile.name + ' · ' + S.profile.dept;
     document.querySelectorAll('.win').forEach(function (n) { n.textContent = cfg().editWindowDays; });
+    $('claimsTab').hidden = !cfg().claimsOn;
     renderPill();
   }
 
@@ -659,7 +662,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     renderNotice(); renderBar();
   }
 
-  function renderAll() { renderHeader(); if (tab === 'log') renderLog(); else renderHist(); renderBar(); }
+  function renderAll() { renderHeader(); if (tab === 'log') renderLog(); else if (tab === 'hist') renderHist(); renderBar(); }
 
   // ---------- open a date ----------
   function openDate(d) {
@@ -794,8 +797,10 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   function setTab(t) {
     tab = t;
     document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); });
-    $('tab-log').hidden = t !== 'log'; $('tab-hist').hidden = t !== 'hist';
-    if (t === 'hist') { renderHist(); loadHistory(); } else renderLog();
+    $('tab-log').hidden = t !== 'log'; $('tab-hist').hidden = t !== 'hist'; $('tab-claims').hidden = t !== 'claims';
+    $('ttl').textContent = t === 'claims' ? 'Claims' : 'Daily log';
+    if (t !== 'claims' && window.QTSClaims) QTSClaims.hide();
+    if (t === 'hist') { renderHist(); loadHistory(); } else if (t === 'claims') { if (window.QTSClaims) QTSClaims.show(); else toast('Claims are loading… try again in a moment.'); } else renderLog();
     renderBar(); window.scrollTo(0, 0);
   }
 
@@ -852,8 +857,14 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   }
   $('iosX').onclick = function () { $('iosTip').hidden = true; };
 
+  // bridge for the Claims tab (claims.js)
+  window.QTS = { api: api, S: function () { return S; }, persist: persist, toast: toast, today: today, addDays: addDays, pretty: pretty, stamp: stamp, tab: function () { return tab; } };
+  if (window.QTSClaims) QTSClaims.attach(window.QTS);
+
   boot();
 })();
 </script>
+<script src="claims.js"></script>
+<script>if (window.QTSClaims && window.QTS) QTSClaims.attach(window.QTS);</script>
 </body>
 </html>
