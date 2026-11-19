@@ -333,6 +333,8 @@
     var c = ccfg(), h = '';
     h += '<div class="cl-h"><button type="button" class="cl-back" data-act="home">‹ Claims</button><h2>' + kindName(d.kind) + '</h2></div>';
     if (d.no) h += '<div class="banner info">Editing <b>' + esc(d.no) + '</b> after rejection. Fix what the manager asked and submit again; it keeps the same number.</div>';
+    if (d.settling && !d.no) h += '<div class="banner info">Settling advance <b>' + esc(d.settling) + '</b>: it is already ticked below and will be deducted. Add your expenses and receipts, then submit.' +
+      '<div class="cl-acts" style="margin-top:8px"><button type="button" data-act="switchKind">' + (d.kind === 'local' ? 'This was outstation travel' : 'This was local travel') + '</button></div></div>';
     h += '<div id="clErr"></div><div id="clFy"></div>';
     if (d.kind === 'local') h += localForm(d, c);
     else if (d.kind === 'outstation') h += outstationForm(d, c);
@@ -576,6 +578,7 @@
       case 'openFile': return openFile(getP(d, t.dataset.path)[+t.dataset.i]);
       case 'ts': return toggleTs();
       case 'tsAdd': return tsAdd();
+      case 'switchKind': return switchSettleKind();
     }
   }
   function focusLast(path, sub) {
@@ -753,6 +756,43 @@
     }).catch(function (e) { Q.toast(e.message); });
   }
 
+  // ---------- settle an advance (link from the reminder email) ----------
+  function draftFromAdvance(a, kind) {
+    var d = { id: uid(), kind: kind, createdAt: Date.now(), updatedAt: Date.now(), note: '', advances: [a.no], settling: a.no };
+    var custs = (a.customers && a.customers.length ? a.customers.slice() : ['']);
+    if (kind === 'outstation') {
+      var t = newTrip(); t.start = a.from <= today() ? a.from : ''; t.end = a.to <= today() ? a.to : '';
+      t.location = a.location || ''; t.purpose = a.purpose || ''; t.customers = custs; t.inv = a.inv || ''; t.currency = a.currency || 'INR';
+      d.trips = [t];
+    } else {
+      var v = newVisit(); v.start = a.from <= today() ? a.from : ''; v.end = a.to <= today() ? a.to : v.start;
+      v.location = a.location || ''; v.purpose = a.purpose || ''; v.customers = custs; v.inv = a.inv || '';
+      d.visits = [v]; d.bikeAmount = ''; d.carAmount = ''; d.oop = [];
+    }
+    return d;
+  }
+  function settle(no) {
+    init();
+    var existing = Object.keys(drafts()).map(function (k) { return drafts()[k]; }).filter(function (d) { return (d.advances || []).indexOf(no) >= 0; })[0];
+    if (existing) { edit(existing.id); Q.toast('Continue your claim for ' + no + '.'); return; }
+    if (!online()) { renderHome(); Q.toast('Connect to the internet to settle ' + no + '.'); return; }
+    renderHome(); Q.toast('Opening a claim for ' + no + '…');
+    Q.api('claimsCfg').then(function (r) {
+      S().claimsCfg = r.claimsCfg; Q.persist();
+      var a = (r.claimsCfg.advances || []).filter(function (x) { return x.no === no; })[0];
+      if (!a) { flash = '<div class="banner warn">Advance <b>' + esc(no) + '</b> is already settled in a claim, or it is not yours.</div>'; renderHome(); return; }
+      var d = draftFromAdvance(a, a.currency && a.currency !== 'INR' ? 'outstation' : (/bike|own car|taxi/i.test(a.mode || '') ? 'local' : 'outstation'));
+      drafts()[d.id] = d; Q.persist(); edit(d.id);
+    }).catch(function (e) { Q.toast(e.network ? 'Could not reach the server. Try again when you are online.' : e.message); });
+  }
+  function switchSettleKind() {
+    var d = draft(); if (!d || !d.settling) return;
+    var a = (ccfg().advances || []).filter(function (x) { return x.no === d.settling; })[0]; if (!a) return;
+    var other = draftFromAdvance(a, d.kind === 'local' ? 'outstation' : 'local');
+    filesOf(d).forEach(function (f) { if (f.lid && !f.id) delFile(f.lid); });
+    delete drafts()[d.id]; drafts()[other.id] = other; Q.persist(); edit(other.id);
+  }
+
   // ---------- public ----------
   var inited = false;
   function init() {
@@ -771,6 +811,7 @@
   window.QTSClaims = {
     attach: function (bridge) { Q = bridge; },
     show: function () { init(); if (view === 'edit' && draft()) { renderEditor(); } else renderHome(); refresh(); },
+    settle: function (no) { settle(no); },
     hide: function () { if (bar) bar.hidden = true; }
   };
 })();

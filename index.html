@@ -310,11 +310,21 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   }
 
   // ---------- boot ----------
-  var qp = new URLSearchParams(location.search), t = qp.get('t');
+  var qp = new URLSearchParams(location.search), t = qp.get('t'), settleNo = qp.get('settle');
   if (t) {
     if (S.token && S.token !== t) { S.prevProfileId = S.profile && S.profile.id; S.profile = null; }
     S.token = t; persist();
     if (!window.QTS_IOS) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+  }
+  // "Settle advance" link from the reminder email: open a claim with that advance already ticked
+  if (settleNo && /^ADV-[0-9-]+$/.test(settleNo)) {
+    S.pendingSettle = settleNo; persist();
+    try { history.replaceState(null, '', location.pathname + (window.QTS_IOS && S.token ? '?t=' + encodeURIComponent(S.token) : '')); } catch (e) {}
+  }
+  function maybeSettle() {
+    if (!S.pendingSettle || !S.config || !S.config.claimsOn || !window.QTSClaims) return;
+    var no = S.pendingSettle; delete S.pendingSettle; persist();
+    setTab('claims'); QTSClaims.settle(no);
   }
 
   function gate(title, msg) { $('app').hidden = true; $('gate').hidden = false; $('gateTitle').textContent = title; $('gateMsg').textContent = msg; $('pasteBox').hidden = true; }
@@ -353,7 +363,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
       var sig0 = JSON.stringify(S.config);
       start();
       // settings changed on the server (new options, slots, lunch…): redraw now, unless the person is mid-typing
-      hello().then(function () { renderHeader(); var ae = document.activeElement; if (JSON.stringify(S.config) !== sig0 && !(ae && /^(TEXTAREA|INPUT)$/.test(ae.tagName))) renderLog(); }).catch(function () {});
+      hello().then(function () { renderHeader(); var ae = document.activeElement; if (JSON.stringify(S.config) !== sig0 && !(ae && /^(TEXTAREA|INPUT)$/.test(ae.tagName)) && tab === 'log') renderLog(); maybeSettle(); }).catch(function () {});
       return;
     }
     gate('Setting up…', 'Connecting to QInsight…');
@@ -816,6 +826,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   var started = false;
   function start() {
     $('gate').hidden = true; $('app').hidden = false;
+    setTimeout(maybeSettle, 0);
     if (started) { renderAll(); return; }
     started = true;
     prune(); renderHeader();
