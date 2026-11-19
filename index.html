@@ -167,6 +167,11 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   .inv.ask{background:#fff8f3;border-color:#f3c9ae;border-left:6px solid var(--orange)}
   .inv .q{color:var(--navy)}
   .inv .yn button.on.y{background:var(--navy);border-color:var(--navy)}
+  .inv{padding:10px}
+  .inv .md{display:flex;gap:8px;margin-top:8px}
+  .inv .md button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 4px;font-weight:700;font-size:14px;color:var(--navy)}
+  .inv .md button.on{background:var(--teal2);border-color:var(--teal2);color:#fff}
+  .inv.ask .md button{border-color:#f3c9ae}
   .blk{background:#fff;border-color:#e6ebf0;border-left:6px solid var(--orange)}
   .blk label{color:var(--navy)}
   .leave b{color:var(--navy)}
@@ -278,7 +283,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   function minDay() { return addDays(today(), -cfg().editWindowDays); }
 
   // ---------- config ----------
-  var DEFAULT_CFG = { slots: [], slotMinutes: 120, dayTypes: ['Office','Site','WFH','Travel','Leave','Comp Off'], offTypes: ['Leave','Comp Off'], nightTypes: ['Site','Travel'], invoiceTypes: ['Site','Travel'], lunch: { start: '13:00', minutes: 30, earliest: '11:00', latest: '16:30', step: 15 }, editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
+  var DEFAULT_CFG = { slots: [], slotMinutes: 120, dayTypes: ['Office','Site','WFH','Travel','Leave','Comp Off'], offTypes: ['Leave','Comp Off'], nightTypes: ['Site','Travel'], invoiceTypes: ['Office','WFH','Site','Travel'], manDays: [0.25,0.5,1], lunch: { start: '13:00', minutes: 30, earliest: '11:00', latest: '16:30', step: 15 }, editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
   function cfg() { return S.config || DEFAULT_CFG; }
   function nSlots() { return cfg().slots.length; }
 
@@ -405,7 +410,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   function normType(t) { t = String(t || ''); if (/^comp/i.test(t)) return 'Comp Off'; if (/^leave/i.test(t)) return 'Leave'; return t || 'Office'; }
   function offTypes() { return cfg().offTypes || ['Leave', 'Comp Off']; }
   function isNight(t) { return (cfg().nightTypes || ['Site', 'Travel']).indexOf(t) >= 0; }
-  function needsInvoice(t) { return (cfg().invoiceTypes || ['Site', 'Travel']).indexOf(t) >= 0; }
+  function needsInvoice(t) { return (cfg().invoiceTypes || ['Office', 'WFH', 'Site', 'Travel']).indexOf(t) >= 0; }
   function isCore(s) { return s.core !== undefined ? s.core : (s.start >= (cfg().coreStart || '09:00') && s.start < (cfg().coreEnd || '17:30')); }
   function groupOf(s, k) {
     if (s.night) return 'night';
@@ -485,13 +490,17 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     if (!needsInvoice(e.type)) { c.hidden = true; c.classList.remove('ask'); return; }
     c.hidden = false;
     var v = e.invoiceable || '';
-    c.innerHTML = '<div class="q">Is this ' + (e.type === 'Travel' ? 'travel' : 'site work') + ' invoiceable to a client?<span>Needed for the monthly report, so admin and finance can plan travel.</span></div>' +
-      '<div class="yn"><button type="button" class="y' + (v === 'Yes' ? ' on' : '') + '">Yes, invoiceable</button><button type="button" class="n' + (v === 'No' ? ' on' : '') + '">No</button></div>' +
-      (v === 'Yes' ? '<input id="client" maxlength="200" placeholder="Client / job (optional), e.g. IOCL Panipat – UT survey">' : '');
-    if (v) c.classList.remove('ask');
-    var set = function (val) { touch(function (x) { x.invoiceable = val; }); renderInv(); renderNotice(); renderBar(); if (val === 'Yes') { var i = $('client'); if (i) i.focus(); } };
+    var md = Number(e.manDays) || 0, opts = cfg().manDays || [0.25, 0.5, 1];
+    c.innerHTML = '<div class="yn"><button type="button" class="y' + (v === 'Yes' ? ' on' : '') + '">Invoiceable</button><button type="button" class="n' + (v === 'No' ? ' on' : '') + '">Non-invoiceable</button></div>' +
+      (v === 'Yes' ? '<div class="md">' + opts.map(function (o) { return '<button type="button" data-md="' + o + '"' + (md === o ? ' class="on"' : '') + '>' + o + ' Man day</button>'; }).join('') + '</div>' +
+        '<input id="client" maxlength="200" placeholder="Client / job (optional)">' : '');
+    if (v && (v === 'No' || md)) c.classList.remove('ask');
+    var set = function (val) { touch(function (x) { x.invoiceable = val; if (val !== 'Yes') x.manDays = ''; }); renderInv(); renderNotice(); renderBar(); };
     c.querySelector('.y').onclick = function () { set('Yes'); };
     c.querySelector('.n').onclick = function () { set('No'); };
+    Array.prototype.forEach.call(c.querySelectorAll('.md button'), function (b) {
+      b.onclick = function () { var val = Number(b.dataset.md); touch(function (x) { x.manDays = val; }); renderInv(); renderNotice(); renderBar(); };
+    });
     var ci = $('client');
     if (ci) { ci.value = e.client || ''; ci.oninput = function () { var v2 = ci.value; touch(function (x) { x.client = v2; }); renderNotice(); renderBar(); }; }
   }
@@ -655,7 +664,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     api('get', { date: d }).then(function (r) {
       var now = entry(asked);
       if (now && now.state !== 'synced' && now.state !== 'error') return; // user started typing meanwhile
-      if (r.entry) { S.entries[asked] = { type: normType(r.entry.type), map: r.entry.map || {}, invoiceable: r.entry.invoiceable || '', client: r.entry.client || '', lunch: r.entry.lunch || LC().start, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
+      if (r.entry) { S.entries[asked] = { type: normType(r.entry.type), map: r.entry.map || {}, invoiceable: r.entry.invoiceable || '', manDays: r.entry.manDays || '', client: r.entry.client || '', lunch: r.entry.lunch || LC().start, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
       else if (now && now.state === 'synced') delete S.entries[asked];
       persist();
       delete openGroups['early' + asked]; delete openGroups['late' + asked]; delete openGroups['night' + asked];
@@ -670,7 +679,12 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     if (needsInvoice(e.type) && !e.invoiceable) {
       var c = $('inv'); c.classList.remove('ask'); void c.offsetWidth; c.classList.add('ask');
       c.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      return toast('Please answer: is this work invoiceable?');
+      return toast('Please choose Invoiceable or Non-invoiceable.');
+    }
+    if (needsInvoice(e.type) && e.invoiceable === 'Yes' && !Number(e.manDays)) {
+      var c2 = $('inv'); c2.classList.remove('ask'); void c2.offsetWidth; c2.classList.add('ask');
+      c2.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return toast('Please choose 0.25, 0.5 or 1 man day.');
     }
     if (entry(cur) && entry(cur).state === 'synced') return toast('Already submitted. Edit something to update it.');
     var x = S.entries[cur] || (S.entries[cur] = e);
@@ -692,7 +706,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
       chain = chain.then(function () {
         if (stop) return;
         var e = normalize(S.entries[d]), sentEdit = e.editedAt;
-        return api('save', { entry: { date: d, type: e.type, map: e.map, summary: e.summary, invoiceable: e.invoiceable || '', client: e.client || '', lunch: lunchOf(e) } }).then(function (r) {
+        return api('save', { entry: { date: d, type: e.type, map: e.map, summary: e.summary, invoiceable: e.invoiceable || '', manDays: e.invoiceable === 'Yes' ? (Number(e.manDays) || '') : '', client: e.client || '', lunch: lunchOf(e) } }).then(function (r) {
           var now = S.entries[d];
           if (now && now.editedAt === sentEdit) { now.state = 'synced'; now.updatedAt = r.updatedAt; now.hours = r.hours; delete now.error; }
           sentOk++;
