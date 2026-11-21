@@ -172,6 +172,29 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   .inv .md button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 4px;font-weight:700;font-size:14px;color:var(--navy)}
   .inv .md button.on{background:var(--teal2);border-color:var(--teal2);color:#fff}
   .inv.ask .md button{border-color:#f3c9ae}
+  .wk{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+  .wkr{border:1px solid var(--line);border-radius:10px;padding:8px 10px 10px;background:#fbfcfd}
+  .wkh{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .wkx{border:0;background:none;color:var(--muted);font-size:15px;padding:2px 6px}
+  .wkr .md{margin-top:6px}
+  .wkn{width:100%;margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:15px;color:var(--ink);background:#fff}
+  .wkn:focus{outline:none;border-color:var(--teal2)}
+  .wkf{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:13px;color:var(--muted)}
+  .wkf b{color:var(--navy)}
+  .wka{border:1px dashed var(--teal2);background:#fff;color:var(--teal2);border-radius:10px;padding:9px 12px;font-weight:700;font-size:14px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:64px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 6px;font-weight:700;font-size:13px;color:var(--navy)}
+  .seg button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .bsz{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);background:#f7f9fb}
+  .bsz span{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+  .bsz .seg{flex:1}
+  .leave.half{padding:16px 14px;border-bottom:1px solid var(--line)}
+  .leave .seg{margin:4px 0 10px}
+  .leave .hw{font-weight:700;color:var(--navy);margin:6px 0 6px;font-size:14px}
+  .leave small{display:block;color:var(--muted);margin-top:4px}
+  .slot.sm{padding-top:5px;padding-bottom:5px}
+  .slot.sm textarea{min-height:38px;padding:8px 10px}
+  .slot.fd textarea{min-height:84px}
   .blk{background:#fff;border-color:#e6ebf0;border-left:6px solid var(--orange)}
   .blk label{color:var(--navy)}
   .leave b{color:var(--navy)}
@@ -285,7 +308,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   function minDay() { return addDays(today(), -cfg().editWindowDays); }
 
   // ---------- config ----------
-  var DEFAULT_CFG = { slots: [], slotMinutes: 120, dayTypes: ['Office','Site','WFH','Travel','Leave','Comp Off'], offTypes: ['Leave','Comp Off'], nightTypes: ['Site','Travel'], invoiceTypes: ['Office','WFH','Site','Travel'], manDays: [0.25,0.5,1], lunch: { start: '13:00', minutes: 30, earliest: '11:00', latest: '16:30', step: 15 }, editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
+  var DEFAULT_CFG = { slots: [], slotMinutes: 120, dayTypes: ['Office','Site','WFH','Travel','Leave','Comp Off'], offTypes: ['Leave','Comp Off'], nightTypes: ['Office','WFH','Site','Travel'], invoiceTypes: ['Office','WFH','Site','Travel'], manDays: [0.25,0.5,0.75,1], blocks: [30,60,120,'day'], fullDayTypes: ['Site','Travel'], lunch: { start: '13:00', minutes: 30, earliest: '11:00', latest: '16:30', step: 15 }, editWindowDays: 30, workDays: [1,2,3,4,5,6], holidays: {}, reminderAt: '17:00' };
   function cfg() { return S.config || DEFAULT_CFG; }
   function nSlots() { return cfg().slots.length; }
 
@@ -378,11 +401,45 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   var tab = 'log';
 
   function blank() {
-    return { type: S.lastType && !isOff(S.lastType) ? S.lastType : 'Office', map: {}, summary: '', state: 'new' };
+    return { type: S.lastType && !isOff(S.lastType) ? S.lastType : 'Office', block: S.lastBlock || 120, map: {}, work: [], summary: '', state: 'new' };
   }
   function entry(d) { var e = S.entries[d]; if (e) normalize(e); return e || null; }
   function viewEntry() { return entry(cur) || blank(); }
-  // Slots are stored by start time ("09:00"); entries saved under an older slot layout are merged into the slot they fall in.
+  // ----- blocks: each 2-hour slot can be split into 30-min or 1-hour blocks; "Full day" = one box (Site / Travel) -----
+  function blk(e) { var b = e && e.block; return b === 'day' || b === 30 || b === 60 ? b : 120; }
+  function effType(e) { return isOff(e.type) && e.half ? (e.workType || 'Office') : e.type; }
+  function fullDayOK(t) { return (cfg().fullDayTypes || ['Site', 'Travel']).indexOf(t) >= 0; }
+  function dayMode(e) { return blk(e) === 'day' && fullDayOK(effType(e)) && !e.half; }
+  function unitMin(e, s) { return blk(e) === 'day' ? 120 : blk(e); }   // night blocks stay 2-hour in Full day mode
+  function firstCore() { var sl = cfg().slots; for (var j = 0; j < sl.length; j++) if (isCore(sl[j])) return j; return 0; }
+  function units(e) {
+    var out = [], sl = cfg().slots, fc = firstCore(), dm = dayMode(e);
+    sl.forEach(function (s, i) {
+      if (dm && !s.night) {
+        if (i === fc) out.push({ key: 'day', start: cfg().coreStart || '09:00', end: cfg().coreEnd || '19:00', minutes: mins(cfg().coreEnd || '19:00') - mins(cfg().coreStart || '09:00'), slot: i, day: true });
+        return;
+      }
+      var um = unitMin(e, s), n = Math.max(1, Math.round(SMin(i) / um));
+      for (var j = 0; j < n; j++) { var a = mins(s.start) + j * um; out.push({ key: hm(a), start: hm(a), end: hm(a + um), minutes: um, slot: i, night: !!s.night }); }
+    });
+    return out;
+  }
+  // older entries (2-hour keys, or another block size) are folded into the block each time falls in
+  function unitKeyOf(e, k) {
+    var i = slotIdxOf(k); if (i < 0) return null;
+    var s = cfg().slots[i], um = unitMin(e, s), off = posOf(k) - posOf(s.start);
+    return hm(mins(s.start) + Math.floor(off / um) * um);
+  }
+  function rebucket(e) {
+    var keys = Object.keys(e.map || {}); if (!keys.length) return;
+    var nm = {}, sep = blk(e) === 120 || blk(e) === 'day' ? ' / ' : '\n';
+    keys.sort(function (a, b) { return posOf(a) - posOf(b); }).forEach(function (k) {
+      var v = String(e.map[k] || '').trim(); if (!v || v === 'Lunch') return;
+      var nk = unitKeyOf(e, k); if (!nk) return;
+      nm[nk] = nm[nk] ? (nm[nk].split(sep).indexOf(v) >= 0 ? nm[nk] : nm[nk] + sep + v) : v;
+    });
+    e.map = nm;
+  }
   function normalize(e) {
     e.type = normType(e.type);
     if (!e.map) {
@@ -390,21 +447,17 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
       (e.slots || []).forEach(function (v, i) { if (v && v !== 'Lunch') { var m = 540 + 30 * i; e.map[pad(Math.floor(m / 60)) + ':' + pad(m % 60)] = v; } });
       delete e.slots;
     }
-    var sl = cfg().slots, starts = {};
-    sl.forEach(function (s) { starts[s.start] = 1; });
-    if (sl.length && Object.keys(e.map).some(function (k) { return !starts[k]; })) {
-      var nm = {};
-      Object.keys(e.map).sort(function (a, b) { return posOf(a) - posOf(b); }).forEach(function (k) {
-        var i = slotIdxOf(k), v = String(e.map[k] || '').trim(); if (i < 0 || !v) return;
-        var st = sl[i].start;
-        nm[st] = nm[st] ? (nm[st].split(' / ').indexOf(v) >= 0 ? nm[st] : nm[st] + ' / ' + v) : v;
-      });
-      e.map = nm;
+    if (e.block === undefined) e.block = 120;
+    if (!Array.isArray(e.work)) { e.work = []; if (e.invoiceable === 'Yes' && (e.manDays || e.client)) e.work.push({ md: Number(e.manDays) || '', note: e.client || '' }); }
+    if (cfg().slots.length) {
+      var keys = Object.keys(e.map), ok = {};
+      units(e).forEach(function (u) { ok[u.key] = 1; });
+      if (keys.some(function (k) { return !ok[k]; })) rebucket(e);
     }
     return e;
   }
-  function sv(e, i) { var s = cfg().slots[i]; return s ? ((e.map || {})[s.start] || '') : ''; }
-  function setSv(e, i, v) { var k = cfg().slots[i].start; e.map = e.map || {}; if (v) e.map[k] = v; else delete e.map[k]; }
+  function uv(e, u) { return u.day ? (e.dayText || '') : ((e.map || {})[u.key] || ''); }
+  function setUv(e, u, v) { if (u.day) { e.dayText = v; return; } e.map = e.map || {}; if (v) e.map[u.key] = v; else delete e.map[u.key]; }
   // ----- slot geometry (the log day runs 7 am → 7 am, 2-hour slots) -----
   function SMin(i) { var s = cfg().slots[i]; return (s && s.minutes) || cfg().slotMinutes || 30; }
   function gridStart() { return cfg().slots.length ? mins(cfg().slots[0].start) : 420; }
@@ -415,27 +468,35 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   function mins(t) { var p = String(t).split(':'); return +p[0] * 60 + +p[1]; }
   function hm(m) { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
   function lunchOf(e) { return (e && e.lunch) || LC().start; }
-  function lunchOverlap(e, i) { var a = mins(cfg().slots[i].start), L = mins(lunchOf(e)), E = L + LC().minutes; return Math.max(0, Math.min(a + SMin(i), E) - Math.max(a, L)); }
-  function covered(e, i) { return lunchOverlap(e, i) >= SMin(i); }
-  function shown(e, i) { var s = cfg().slots[i]; return !(s && s.night) || isNight(e.type); }
-  function counts(e, i) { return shown(e, i) && !covered(e, i) && sv(e, i).trim(); }
-  function workMinutes(e) { var t = 0; cfg().slots.forEach(function (s, i) { if (counts(e, i)) t += SMin(i) - lunchOverlap(e, i); }); return t; }
+  function lunchOverlapU(e, u) { var a = posOf(u.start), L = posOf(lunchOf(e)), E = L + LC().minutes; return Math.max(0, Math.min(a + u.minutes, E) - Math.max(a, L)); }
+  function coveredU(e, u) { return lunchOverlapU(e, u) >= u.minutes; }
+  function offHalf(e, u) {
+    if (!e.half || u.night) return false;
+    var p = posOf(u.start), L = posOf(lunchOf(e));
+    return e.half === 'First' ? p < L : p >= L;
+  }
+  function shownU(e, u) { if (isOff(e.type) && !e.half) return false; return !offHalf(e, u); }
+  function countsU(e, u) { return shownU(e, u) && !coveredU(e, u) && uv(e, u).trim(); }
+  function workMinutes(e) { var t = 0; units(e).forEach(function (u) { if (countsU(e, u)) t += u.minutes - lunchOverlapU(e, u); }); return t; }
   function fmtH(m) { return String(Math.round(m / 60 * 100) / 100); }
-  function filledCount(e) { var c = 0; cfg().slots.forEach(function (s, i) { if (counts(e, i)) c++; }); return c; }
-  function coreMinutes() { var t = 0; cfg().slots.forEach(function (s, i) { if (isCore(s)) t += SMin(i); }); return Math.max(60, t - LC().minutes); }
+  function filledCount(e) { var c = 0; units(e).forEach(function (u) { if (countsU(e, u)) c++; }); return c; }
+  function coreMinutes(e) { var t = 0; cfg().slots.forEach(function (s, i) { if (isCore(s)) t += SMin(i); }); t = Math.max(60, t - LC().minutes); return e && e.half ? t / 2 : t; }
   // ----- day types -----
   function isOff(t) { return /^(leave|comp)/i.test(t || ''); }
   function normType(t) { t = String(t || ''); if (/^comp/i.test(t)) return 'Comp Off'; if (/^leave/i.test(t)) return 'Leave'; return t || 'Office'; }
   function offTypes() { return cfg().offTypes || ['Leave', 'Comp Off']; }
-  function isNight(t) { return (cfg().nightTypes || ['Site', 'Travel']).indexOf(t) >= 0; }
+  function workTypes() { return cfg().dayTypes.filter(function (t) { return !isOff(t); }); }
+  function isNight(t) { return (cfg().nightTypes || ['Office', 'WFH', 'Site', 'Travel']).indexOf(t) >= 0; }
   function needsInvoice(t) { return (cfg().invoiceTypes || ['Office', 'WFH', 'Site', 'Travel']).indexOf(t) >= 0; }
   function isCore(s) { return s.core !== undefined ? s.core : (s.start >= (cfg().coreStart || '09:00') && s.start < (cfg().coreEnd || '17:30')); }
-  function groupOf(s, k) {
-    if (s.night) return 'night';
+  function groupOfU(u) {
+    if (u.night) return 'night';
+    if (u.day) return 'core';
+    var sl = cfg().slots, s = sl[u.slot];
     if (isCore(s)) return 'core';
-    var sl = cfg().slots; for (var j = 0; j < sl.length; j++) if (isCore(sl[j])) return k < j ? 'early' : 'late';
-    return 'late';
+    return u.slot < firstCore() ? 'early' : 'late';
   }
+  function workTotal(e) { return Math.round((e.work || []).reduce(function (t, w) { return t + (Number(w.md) || 0); }, 0) * 100) / 100; }
   var openGroups = {};
 
   function touch(mut) {
@@ -484,18 +545,18 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
       var b = document.createElement('button');
       if (off) {
         offDone = true;
-        b.textContent = isOff(e.type) ? e.type.replace('Comp Off', 'Comp-Off') + ' ▾' : 'Leave / Comp-Off';
+        b.textContent = isOff(e.type) ? (e.half ? '½ ' : '') + e.type.replace('Comp Off', 'Comp-Off') + ' ▾' : 'Leave / Comp-Off';
         b.className = isOff(e.type) ? 'on' : '';
         b.onclick = function () {
-          if (!isOff(viewEntry().type)) { touch(function (x) { x.type = offTypes()[0]; }); renderLog(); }
+          if (!isOff(viewEntry().type)) { touch(function (x) { x.workType = x.type; x.type = offTypes()[0]; }); renderLog(); }
           var sel = $('offSel'); if (sel) { sel.focus(); try { sel.showPicker(); } catch (er) {} }
         };
         box.appendChild(b); return;
       }
       b.textContent = t; b.className = e.type === t ? 'on' : '';
       b.onclick = function () {
-        var wasInv = needsInvoice(viewEntry().type);
-        touch(function (x) { x.type = t; });
+        var wasInv = needsInvoice(effType(viewEntry()));
+        touch(function (x) { x.type = t; x.half = ''; if (x.block === 'day' && !fullDayOK(t)) x.block = 120; rebucket(x); });
         renderLog();
         if (needsInvoice(t) && !viewEntry().invoiceable) { var c = $('inv'); c.classList.add('ask'); if (!wasInv) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
       };
@@ -504,50 +565,111 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     renderInv();
   }
 
+  // invoiceable work: several entries a day, each a man-day value with a short client / work note
   function renderInv() {
-    var e = viewEntry(), c = $('inv');
-    if (!needsInvoice(e.type)) { c.hidden = true; c.classList.remove('ask'); return; }
+    var e = viewEntry(), c = $('inv'), et = effType(e);
+    if ((isOff(e.type) && !e.half) || !needsInvoice(et)) { c.hidden = true; c.classList.remove('ask'); return; }
     c.hidden = false;
-    var v = e.invoiceable || '';
-    var md = Number(e.manDays) || 0, opts = cfg().manDays || [0.25, 0.5, 1];
-    c.innerHTML = (e.type === 'Office' || e.type === 'WFH' ? '<div class="q">Is today\'s work OR part of it invoiceable to client?</div>' : '') +
-      '<div class="yn"><button type="button" class="y' + (v === 'Yes' ? ' on' : '') + '">Invoiceable</button><button type="button" class="n' + (v === 'No' ? ' on' : '') + '">Non-invoiceable</button></div>' +
-      (v === 'Yes' ? '<div class="md">' + opts.map(function (o) { return '<button type="button" data-md="' + o + '"' + (md === o ? ' class="on"' : '') + '>' + o + ' Man day</button>'; }).join('') + '</div>' +
-        '<input id="client" maxlength="200" placeholder="Client / job (optional)">' : '');
-    if (v && (v === 'No' || md)) c.classList.remove('ask');
-    var set = function (val) { touch(function (x) { x.invoiceable = val; if (val !== 'Yes') x.manDays = ''; }); renderInv(); renderNotice(); renderBar(); };
+    var v = e.invoiceable || '', opts = cfg().manDays || [0.25, 0.5, 0.75, 1];
+    var work = e.work || [];
+    var h = (et === 'Office' || et === 'WFH' ? '<div class="q">Is today\'s work OR part of it invoiceable to client?</div>' : '') +
+      '<div class="yn"><button type="button" class="y' + (v === 'Yes' ? ' on' : '') + '">Invoiceable</button><button type="button" class="n' + (v === 'No' ? ' on' : '') + '">Non-invoiceable</button></div>';
+    if (v === 'Yes') {
+      h += '<div class="wk">' + work.map(function (w, i) {
+        return '<div class="wkr" data-w="' + i + '"><div class="wkh"><span>Entry ' + (i + 1) + '</span>' + (work.length > 1 ? '<button type="button" class="wkx" aria-label="Remove entry ' + (i + 1) + '">✕</button>' : '') + '</div>' +
+          '<div class="md">' + opts.map(function (o) { return '<button type="button" data-md="' + o + '"' + (Number(w.md) === o ? ' class="on"' : '') + '>' + o + '</button>'; }).join('') + '</div>' +
+          '<input class="wkn" maxlength="200" placeholder="Client / work (short note)" value="' + esc(w.note || '') + '"></div>';
+      }).join('') + '</div>' +
+      '<div class="wkf"><button type="button" class="wka">+ Add another invoiceable entry</button><span>' + (workTotal(e) ? 'Total <b>' + workTotal(e) + '</b> man-day' + (workTotal(e) === 1 ? '' : 's') : 'Man-days per entry') + '</span></div>';
+    }
+    c.innerHTML = h;
+    if (v === 'No' || (v === 'Yes' && work.length && work.every(function (w) { return Number(w.md) && String(w.note || '').trim(); }))) c.classList.remove('ask');
+    var set = function (val) { touch(function (x) { x.invoiceable = val; if (val === 'Yes' && !(x.work || []).length) x.work = [{ md: '', note: '' }]; }); renderInv(); renderNotice(); renderBar(); };
     c.querySelector('.y').onclick = function () { set('Yes'); };
     c.querySelector('.n').onclick = function () { set('No'); };
-    Array.prototype.forEach.call(c.querySelectorAll('.md button'), function (b) {
-      b.onclick = function () { var val = Number(b.dataset.md); touch(function (x) { x.manDays = val; }); renderInv(); renderNotice(); renderBar(); };
+    Array.prototype.forEach.call(c.querySelectorAll('.wkr'), function (row) {
+      var i = +row.dataset.w;
+      Array.prototype.forEach.call(row.querySelectorAll('.md button'), function (b) {
+        b.onclick = function () { var val = Number(b.dataset.md); touch(function (x) { x.work[i].md = val; }); renderInv(); renderNotice(); renderBar(); };
+      });
+      var inp = row.querySelector('.wkn');
+      inp.oninput = function () { var t = inp.value; touch(function (x) { x.work[i].note = t; }); renderNotice(); renderBar(); };
+      var x = row.querySelector('.wkx');
+      if (x) x.onclick = function () { touch(function (y) { y.work.splice(i, 1); }); renderInv(); renderNotice(); renderBar(); };
     });
-    var ci = $('client');
-    if (ci) { ci.value = e.client || ''; ci.oninput = function () { var v2 = ci.value; touch(function (x) { x.client = v2; }); renderNotice(); renderBar(); }; }
+    var add = c.querySelector('.wka');
+    if (add) add.onclick = function () {
+      touch(function (x) { x.work = x.work || []; x.work.push({ md: '', note: '' }); });
+      renderInv(); var ins = c.querySelectorAll('.wkn'); if (ins.length) ins[ins.length - 1].focus();
+    };
   }
 
   function autosize(ta) { ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 2) + 'px'; }
 
+  function leavePanel(e) {
+    var halfOpts = [['', 'Full day'], ['First', 'First half'], ['Second', 'Second half']];
+    var h = '<div class="leave' + (e.half ? ' half' : '') + '"><b>' + (e.type === 'Comp Off' ? 'Comp-off 🔁' : 'Leave 🌴') + '</b>' +
+      '<label class="offsel">This day is<select id="offSel" aria-label="Leave or comp-off">' +
+      offTypes().map(function (t) { return '<option value="' + esc(t) + '"' + (t === e.type ? ' selected' : '') + '>' + esc(t.replace('Comp Off', 'Comp-Off')) + '</option>'; }).join('') +
+      '</select></label><div class="seg hf">' + halfOpts.map(function (o) { return '<button type="button" data-half="' + o[0] + '"' + ((e.half || '') === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>'; }).join('') + '</div>';
+    if (e.half) {
+      h += '<div class="hw">The other half I worked:</div><div class="seg wt">' + workTypes().map(function (t) { return '<button type="button" data-wt="' + esc(t) + '"' + (effType(e) === t ? ' class="on"' : '') + '>' + esc(t) + '</button>'; }).join('') + '</div>' +
+        '<small>' + (e.half === 'First' ? 'Morning off: fill in from lunch onwards.' : 'Afternoon off: fill in up to lunch.') + '</small>';
+    } else h += 'Nothing else to fill in. Just tap <b>Submit day</b>.';
+    var div = document.createElement('div'); div.innerHTML = h + '</div>';
+    var el = div.firstChild;
+    el.querySelector('#offSel').onchange = function () { var v = this.value; touch(function (x) { x.type = v; }); renderLog(); };
+    Array.prototype.forEach.call(el.querySelectorAll('[data-half]'), function (b) {
+      b.onclick = function () { var hv = b.dataset.half; touch(function (x) { x.half = hv; if (hv && !x.workType) x.workType = 'Office'; if (hv && x.block === 'day') x.block = 120; rebucket(x); }); renderLog(); };
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-wt]'), function (b) {
+      b.onclick = function () { var t = b.dataset.wt; touch(function (x) { x.workType = t; }); renderLog(); };
+    });
+    return el;
+  }
+
+  function blockPicker(e) {
+    var opts = [[30, '30 min'], [60, '1 hour'], [120, '2 hours']];
+    if (fullDayOK(effType(e)) && !e.half) opts.push(['day', 'Full day']);
+    var row = document.createElement('div'); row.className = 'bsz';
+    row.innerHTML = '<span>Time blocks</span><div class="seg">' + opts.map(function (o) {
+      return '<button type="button" data-b="' + o[0] + '"' + (String(blk(e)) === String(o[0]) ? ' class="on"' : '') + '>' + o[1] + '</button>'; }).join('') + '</div>';
+    Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) {
+      b.onclick = function () {
+        var nb = b.dataset.b === 'day' ? 'day' : Number(b.dataset.b);
+        touch(function (x) {
+          var was = dayMode(x);
+          x.block = nb;
+          if (was && !dayMode(x) && (x.dayText || '').trim()) { x.map = x.map || {}; var k = cfg().coreStart || '09:00'; x.map[k] = x.map[k] ? x.dayText + '\n' + x.map[k] : x.dayText; x.dayText = ''; }
+          if (!was && dayMode(x) && !(x.dayText || '').trim()) {
+            var parts = [];
+            Object.keys(x.map || {}).sort(function (p, q) { return posOf(p) - posOf(q); }).forEach(function (k) { var i = slotIdxOf(k); if (i >= 0 && !cfg().slots[i].night) { parts.push(x.map[k]); delete x.map[k]; } });
+            x.dayText = parts.join('\n');
+          }
+          rebucket(x);
+        });
+        S.lastBlock = nb; persist();
+        renderSlots(); refreshSameButtons(); renderNotice(); renderBar();
+      };
+    });
+    return row;
+  }
+
   function renderSlots() {
     var e = viewEntry(), box = $('slots'); box.innerHTML = '';
-    if (isOff(e.type)) {
-      box.innerHTML = '<div class="leave"><b>' + (e.type === 'Comp Off' ? 'Comp-off day 🔁' : 'Leave 🌴') + '</b>' +
-        '<label class="offsel">This day is<select id="offSel" aria-label="Leave or comp-off">' +
-        offTypes().map(function (t) { return '<option value="' + esc(t) + '"' + (t === e.type ? ' selected' : '') + '>' + esc(t.replace('Comp Off', 'Comp-Off')) + '</option>'; }).join('') +
-        '</select></label>Nothing else to fill in. Just tap <b>Submit day</b>.</div>';
-      $('offSel').onchange = function () { var v = this.value; touch(function (x) { x.type = v; }); renderLog(); };
-      return;
-    }
+    if (isOff(e.type)) { box.appendChild(leavePanel(e)); if (!e.half) return; }
+    box.appendChild(blockPicker(e));
     var L = posOf(lunchOf(e)), lunchDone = false;
-    var sl = cfg().slots, i = 0;
+    var us = units(e);
     var groups = { early: [], late: [], night: [] };
-    sl.forEach(function (s, k) { var g = groupOf(s, k); if (g !== 'core') groups[g].push(k); });
+    us.forEach(function (u, k) { var g = groupOfU(u); if (g !== 'core' && shownU(e, u)) groups[g].push(k); });
     ['early', 'late', 'night'].forEach(function (g) {
-      if (openGroups[g + cur] === undefined) openGroups[g + cur] = groups[g].some(function (k) { return sv(e, k).trim(); });
+      if (openGroups[g + cur] === undefined) openGroups[g + cur] = groups[g].some(function (k) { return uv(e, us[k]).trim(); });
     });
     function fold(g) {
       var ks = groups[g]; if (!ks.length) return;
-      var first = sl[ks[0]], last = sl[ks[ks.length - 1]], open = openGroups[g + cur];
-      var n = ks.filter(function (k) { return sv(e, k).trim(); }).length;
+      var first = us[ks[0]], last = us[ks[ks.length - 1]], open = openGroups[g + cur];
+      var n = ks.filter(function (k) { return uv(e, us[k]).trim(); }).length;
       var b = document.createElement('button'); b.type = 'button'; b.className = 'fold' + (open ? ' open' : '') + (g === 'night' ? ' nt' : '');
       var name = g === 'early' ? 'Earlier slots' : g === 'late' ? 'Later slots' : '🌙 Night shift';
       b.innerHTML = '<span>' + name + ' <small>' + clock(first.start) + ' – ' + clock(last.end) + (g === 'night' ? ' next morning' : '') + (n ? ' · ' + n + ' filled' : '') + '</small></span><span class="chev">▾</span>';
@@ -555,17 +677,16 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
       box.appendChild(b);
     }
     var lastGroup = null;
-    while (i < sl.length) {
-      var g = groupOf(sl[i], i);
-      if (g === 'night' && !isNight(e.type)) { i++; continue; }
+    us.forEach(function (u, k) {
+      if (!shownU(e, u)) return;
+      var g = groupOfU(u);
       if (g !== lastGroup) { if (g !== 'core') fold(g); lastGroup = g; }
-      var a = posOf(sl[i].start);
-      if (!lunchDone && a >= L) { box.appendChild(lunchRow(e)); lunchDone = true; }
-      if ((g !== 'core' && !openGroups[g + cur]) || covered(e, i)) { i++; continue; }
-      box.appendChild(slotRow(i, e));
-      if (!lunchDone && L > a && L < a + SMin(i)) { box.appendChild(lunchRow(e)); lunchDone = true; }
-      i++;
-    }
+      var a = posOf(u.start);
+      if (!lunchDone && !u.day && !u.night && a >= L) { box.appendChild(lunchRow(e)); lunchDone = true; }
+      if ((g !== 'core' && !openGroups[g + cur]) || (!u.day && coveredU(e, u))) return;
+      box.appendChild(slotRow(k, u, e));
+      if (!lunchDone && (u.day || (L > a && L < a + u.minutes))) { box.appendChild(lunchRow(e)); lunchDone = true; }
+    });
     if (!lunchDone) box.appendChild(lunchRow(e));
     box.querySelectorAll('textarea').forEach(autosize);
   }
@@ -592,50 +713,45 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     return row;
   }
 
-  function prevWorkIdx(i) { var e = viewEntry(); for (var k = i - 1; k >= 0; k--) if (shown(e, k) && !covered(e, k)) return k; return -1; }
-  function nextWorkIdx(i) { var e = viewEntry(); for (var k = i + 1; k < cfg().slots.length; k++) if (shown(e, k) && !covered(e, k)) return k; return -1; }
+  function prevWorkIdx(k) { var e = viewEntry(), us = units(e); for (var j = k - 1; j >= 0; j--) if (shownU(e, us[j]) && !coveredU(e, us[j])) return j; return -1; }
+  function nextWorkIdx(k) { var e = viewEntry(), us = units(e); for (var j = k + 1; j < us.length; j++) if (shownU(e, us[j]) && !coveredU(e, us[j])) return j; return -1; }
 
-  function slotRow(i, e) {
-    var s = cfg().slots[i];
-    var row = document.createElement('div'); row.className = 'slot' + (sv(e, i).trim() ? ' filled' : '') + (s.night ? ' nt' : ''); row.dataset.i = i;
-    var lo = lunchOverlap(e, i);
-    row.innerHTML = '<div class="time"><b>' + clock(s.start) + '</b><small>' + clock(s.end) + '</small>' +
-      (lo > 0 ? '<em title="Lunch is inside this slot; it is not counted as work time">−' + lo + ' min lunch</em>' : '') + '</div>';
-    var ta = document.createElement('textarea'); ta.rows = 1; ta.value = sv(e, i);
-    ta.placeholder = s.start === (cfg().coreStart || '09:00') ? 'What did you work on?' : (s.night && !sv(e, i) ? 'Night shift work (if any)' : '');
-    ta.setAttribute('aria-label', 'Work from ' + clock(s.start) + ' to ' + clock(s.end));
+  function slotRow(k, u, e) {
+    var row = document.createElement('div'); row.className = 'slot' + (uv(e, u).trim() ? ' filled' : '') + (u.night ? ' nt' : '') + (u.minutes < 120 ? ' sm' : '') + (u.day ? ' fd' : ''); row.dataset.i = k;
+    var lo = u.day ? LC().minutes : lunchOverlapU(e, u);
+    row.innerHTML = '<div class="time"><b>' + clock(u.start) + '</b><small>' + clock(u.end) + '</small>' +
+      (lo > 0 ? '<em title="Lunch is inside this block; it is not counted as work time">−' + lo + ' min lunch</em>' : '') + '</div>';
+    var ta = document.createElement('textarea'); ta.rows = u.day ? 3 : 1; ta.value = uv(e, u);
+    ta.setAttribute('enterkeyhint', 'enter');
+    ta.placeholder = u.day ? 'What did you do today? (one note for the whole day)' : (u.start === (cfg().coreStart || '09:00') ? 'What did you work on?' : (u.night && !uv(e, u) ? 'Night shift work (if any)' : ''));
+    ta.setAttribute('aria-label', 'Work from ' + clock(u.start) + ' to ' + clock(u.end));
     ta.oninput = function () {
       autosize(ta);
-      touch(function (x) { setSv(x, i, ta.value); });
+      touch(function (x) { setUv(x, u, ta.value); });
       row.classList.toggle('filled', !!ta.value.trim());
       refreshSameButtons(); renderNotice(); renderBar();
     };
-    ta.onkeydown = function (ev) {
-      if (ev.key === 'Enter' && !ev.shiftKey) {
-        ev.preventDefault();
-        var n = nextWorkIdx(i);
-        var nx = n >= 0 && document.querySelector('.slot[data-i="' + n + '"] textarea');
-        (nx || $('summary')).focus();
-      }
-    };
-    var b = document.createElement('button'); b.className = 'same'; b.type = 'button';
-    b.innerHTML = '↑<br>same'; b.title = 'Same as the slot above';
-    b.onclick = function () {
-      var p = prevWorkIdx(i); if (p < 0) return;
-      var v = sv(viewEntry(), p); if (!v.trim()) return;
-      ta.value = v; ta.oninput();
-      var n = nextWorkIdx(i); var nx = n >= 0 && document.querySelector('.slot[data-i="' + n + '"] .same');
-      if (nx) nx.focus();
-    };
-    row.appendChild(ta); row.appendChild(b);
+    row.appendChild(ta);
+    if (!u.day) {
+      var b = document.createElement('button'); b.className = 'same'; b.type = 'button';
+      b.innerHTML = '↑<br>same'; b.title = 'Same as the block above';
+      b.onclick = function () {
+        var p = prevWorkIdx(k); if (p < 0) return;
+        var v = uv(viewEntry(), units(viewEntry())[p]); if (!v.trim()) return;
+        ta.value = v; ta.oninput();
+        var n = nextWorkIdx(k); var nx = n >= 0 && document.querySelector('.slot[data-i="' + n + '"] .same');
+        if (nx) nx.focus();
+      };
+      row.appendChild(b);
+    }
     return row;
   }
 
   function refreshSameButtons() {
-    var e = viewEntry();
+    var e = viewEntry(), us = units(e);
     document.querySelectorAll('.slot').forEach(function (r) {
-      var i = +r.dataset.i, p = prevWorkIdx(i);
-      r.querySelector('.same').disabled = p < 0 || !sv(e, p).trim();
+      var k = +r.dataset.i, p = prevWorkIdx(k), sb = r.querySelector('.same');
+      if (sb) sb.disabled = p < 0 || !uv(e, us[p]).trim();
     });
   }
 
@@ -655,10 +771,10 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     var e = viewEntry(), btn = $('submit'), prog = $('prog');
     if (tab !== 'log') { $('bar').hidden = true; return; }
     $('bar').hidden = false;
-    if (isOff(e.type)) { prog.innerHTML = '<b>' + esc(e.type.replace('Comp Off', 'Comp-off')) + '</b><div>No slots needed</div>'; }
+    if (isOff(e.type) && !e.half) { prog.innerHTML = '<b>' + esc(e.type.replace('Comp Off', 'Comp-off')) + '</b><div>No slots needed</div>'; }
     else {
-      var wm = workMinutes(e), f = filledCount(e);
-      prog.innerHTML = '<b>' + fmtH(wm) + ' h</b> logged · ' + f + ' slot' + (f === 1 ? '' : 's') + '<div class="meter"><i style="width:' + Math.min(100, Math.round(100 * wm / coreMinutes())) + '%"></i></div>';
+      var wm = workMinutes(e), f = filledCount(e), md = e.invoiceable === 'Yes' ? workTotal(e) : 0;
+      prog.innerHTML = '<b>' + fmtH(wm) + ' h</b> logged · ' + (dayMode(e) && f ? 'full day' : f + ' block' + (f === 1 ? '' : 's')) + (md ? ' · ' + md + ' md' : '') + '<div class="meter"><i style="width:' + Math.min(100, Math.round(100 * wm / coreMinutes(e))) + '%"></i></div>';
     }
     var st = entry(cur) ? entry(cur).state : 'new';
     btn.disabled = st === 'pending' && syncing;
@@ -684,7 +800,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     api('get', { date: d }).then(function (r) {
       var now = entry(asked);
       if (now && now.state !== 'synced' && now.state !== 'error') return; // user started typing meanwhile
-      if (r.entry) { S.entries[asked] = { type: normType(r.entry.type), map: r.entry.map || {}, invoiceable: r.entry.invoiceable || '', manDays: r.entry.manDays || '', client: r.entry.client || '', lunch: r.entry.lunch || LC().start, summary: r.entry.summary, updatedAt: r.entry.updatedAt, hours: r.entry.hours, state: 'synced' }; }
+      if (r.entry) { var re = r.entry; S.entries[asked] = { type: normType(re.type), half: re.half || '', workType: re.workType || '', block: re.block || 120, map: re.map || {}, dayText: re.dayText || '', invoiceable: re.invoiceable || '', work: Array.isArray(re.work) ? re.work : undefined, manDays: re.manDays || '', client: re.client || '', lunch: re.lunch || LC().start, summary: re.summary, updatedAt: re.updatedAt, hours: re.hours, state: 'synced' }; }
       else if (now && now.state === 'synced') delete S.entries[asked];
       persist();
       delete openGroups['early' + asked]; delete openGroups['late' + asked]; delete openGroups['night' + asked];
@@ -695,16 +811,21 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   // ---------- submit & sync ----------
   function submit() {
     var e = viewEntry();
-    if (!isOff(e.type) && filledCount(e) === 0) return toast('Write at least one slot, or choose Leave / Comp-Off.');
-    if (needsInvoice(e.type) && !e.invoiceable) {
+    var et = effType(e), working = !isOff(e.type) || e.half;
+    if (working && filledCount(e) === 0) return toast(e.half ? 'Write at least one block for the half you worked.' : 'Write at least one slot, or choose Leave / Comp-Off.');
+    if (working && needsInvoice(et) && !e.invoiceable) {
       var c = $('inv'); c.classList.remove('ask'); void c.offsetWidth; c.classList.add('ask');
       c.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return toast('Please choose Invoiceable or Non-invoiceable.');
     }
-    if (needsInvoice(e.type) && e.invoiceable === 'Yes' && !Number(e.manDays)) {
-      var c2 = $('inv'); c2.classList.remove('ask'); void c2.offsetWidth; c2.classList.add('ask');
-      c2.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      return toast('Please choose 0.25, 0.5 or 1 man day.');
+    if (working && needsInvoice(et) && e.invoiceable === 'Yes') {
+      var w = (e.work || []).filter(function (x) { return Number(x.md) || String(x.note || '').trim(); });
+      var bad = !w.length ? 'Choose the man-days and write a short client / work note for your invoiceable work.' : w.some(function (x) { return !Number(x.md); }) ? 'Choose the man-days (0.25 / 0.5 / 0.75 / 1) for each invoiceable entry.' : w.some(function (x) { return !String(x.note || '').trim(); }) ? 'Write a short client / work note for each invoiceable entry.' : '';
+      if (bad) {
+        var c2 = $('inv'); c2.classList.remove('ask'); void c2.offsetWidth; c2.classList.add('ask');
+        c2.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return toast(bad);
+      }
     }
     if (entry(cur) && entry(cur).state === 'synced') return toast('Already submitted. Edit something to update it.');
     var x = S.entries[cur] || (S.entries[cur] = e);
@@ -726,12 +847,13 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
       chain = chain.then(function () {
         if (stop) return;
         var e = normalize(S.entries[d]), sentEdit = e.editedAt;
-        return api('save', { entry: { date: d, type: e.type, map: e.map, summary: e.summary, invoiceable: e.invoiceable || '', manDays: e.invoiceable === 'Yes' ? (Number(e.manDays) || '') : '', client: e.client || '', lunch: lunchOf(e) } }).then(function (r) {
+        var work = e.invoiceable === 'Yes' ? (e.work || []).filter(function (x) { return Number(x.md) || String(x.note || '').trim(); }) : [];
+        return api('save', { entry: { date: d, type: e.type, half: e.half || '', workType: e.half ? effType(e) : '', block: blk(e), map: e.map, dayText: dayMode(e) ? (e.dayText || '') : '', summary: e.summary, invoiceable: e.invoiceable || '', work: work, manDays: workTotal({ work: work }) || '', client: work.map(function (x) { return x.note; }).join('; '), lunch: lunchOf(e) } }).then(function (r) {
           var now = S.entries[d];
           if (now && now.editedAt === sentEdit) { now.state = 'synced'; now.updatedAt = r.updatedAt; now.hours = r.hours; delete now.error; }
           sentOk++;
           if (r.notified) toast('Submitted. Your note was sent to your manager.');
-          if (S.history) S.history[d] = { type: e.type, hours: r.hours, summary: e.summary, updatedAt: r.updatedAt };
+          if (S.history) S.history[d] = { type: e.type, half: e.half || '', workType: e.half ? effType(e) : '', hours: r.hours, summary: e.summary, updatedAt: r.updatedAt, map: e.map, dayText: e.dayText };
         }).catch(function (err) {
           if (err.network) { stop = true; return; }
           var now = S.entries[d]; if (now) { now.state = 'error'; now.error = err.message; }
@@ -775,17 +897,18 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
       else if (loc && loc.state === 'error') badge = '<span class="badge b-wait">Needs attention</span>';
       else if (srv || (loc && loc.state === 'synced')) {
         var x = srv || loc;
-        badge = '<span class="badge b-ok">' + (isOff(x.type) ? esc(normType(x.type).replace('Comp Off', 'Comp-off')) : (x.hours != null ? Math.round(x.hours * 100) / 100 : fmtH(workMinutes(x))) + ' h') + '</span>';
+        badge = '<span class="badge b-ok">' + (isOff(x.type) && !x.half ? esc(normType(x.type).replace('Comp Off', 'Comp-off')) : (x.hours != null ? Math.round(x.hours * 100) / 100 : fmtH(workMinutes(x))) + ' h') + '</span>';
       }
       else if (hol[d]) badge = '<span class="badge b-off">' + esc(hol[d]) + '</span>';
       else if (!isWork) badge = '<span class="badge b-off">' + DAYS[wday(d)] + '</span>';
       else badge = '<span class="badge b-miss">Not logged</span>';
       if (src) {
-        if (isOff(src.type)) snippet = normType(src.type) === 'Comp Off' ? 'Comp-off day' : 'Leave';
+        if (isOff(src.type) && !src.half) snippet = normType(src.type) === 'Comp Off' ? 'Comp-off day' : 'Leave';
         else {
           var mp = src.map || {}, ks = Object.keys(mp).sort(function (a, b) { return posOf(a) - posOf(b); });
-          var first = ks.length ? mp[ks.filter(function (k) { return posOf(k) >= posOf(cfg().coreStart || '09:00'); })[0] || ks[0]] : '';
-          snippet = src.type + (first ? ' · ' + first : '');
+          var first = src.dayText || (ks.length ? mp[ks.filter(function (k) { return posOf(k) >= posOf(cfg().coreStart || '09:00'); })[0] || ks[0]] : '');
+          var lbl = src.half ? (src.workType || 'Office') + ' + ½ ' + normType(src.type).replace('Comp Off', 'comp-off').replace('Leave', 'leave') : src.type;
+          snippet = lbl + (first ? ' · ' + String(first).split('\n')[0] : '');
         }
         if (src.summary) snippet = '⚑ ' + src.summary;
       }

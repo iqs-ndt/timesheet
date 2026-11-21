@@ -1,6 +1,6 @@
 // QInsight Daily Log: offline support.
 // Bump VERSION whenever you upload changed app files, so phones pick up the new version.
-var VERSION = 'qts-v12';
+var VERSION = 'qts-v13';
 var SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './logo.png', './claims.js'];
 
 self.addEventListener('install', function (e) {
