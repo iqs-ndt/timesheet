@@ -212,6 +212,8 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   .paste button{flex:1;border:0;border-radius:10px;padding:12px;font:inherit;font-weight:700;font-size:15px;background:var(--navy);color:#fff}
   .paste button.alt{background:#eef2f6;color:var(--navy)}
   .paste p{font-size:13px;color:var(--muted);margin:12px 0 0}
+  .copyprev{display:block;width:100%;margin:0 0 10px;border:1px dashed var(--teal2);background:#fff;color:var(--navy);border-radius:10px;padding:9px 12px;font:inherit;font-weight:700;font-size:14px;text-align:center}
+  .copyprev small{font-weight:500;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -236,6 +238,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
       <button class="nav" id="next" aria-label="Next day">›</button>
     </div>
     <div id="notice" class="notice"></div>
+    <button type="button" class="copyprev" id="copyPrev" hidden>⧉ Copy previous day</button>
     <div class="types" id="types"></div>
     <div class="card inv" id="inv" hidden></div>
     <div class="card slots" id="slots"></div>
@@ -756,6 +759,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
   }
 
   function renderNotice() {
+    if (tab === 'log') renderCopy();
     var e = entry(cur), n = $('notice'), cls = '', msg = '';
     if (e && e.state === 'synced') { cls = 'n-ok'; msg = '✓ Submitted' + (e.updatedAt ? ' · ' + stamp(e.updatedAt) : '') + '. Change anything and submit again to update it.'; }
     else if (e && e.state === 'pending') { cls = 'n-wait'; msg = navigator.onLine ? 'Sending…' : 'Saved on this device. It will be sent automatically when you are back online.'; }
@@ -782,8 +786,48 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     btn.textContent = st === 'synced' ? 'Submitted ✓' : st === 'pending' ? 'Queued ✓' : (entry(cur) && entry(cur).updatedAt ? 'Update day' : 'Submit day');
   }
 
+  // ---------- copy previous day ----------
+  function hasContent(e) { return !!e && (filledCount(normalize(e)) > 0 || (isOff(e.type) && (e.updatedAt || e.state === 'pending')) || (e.work || []).some(function (w) { return Number(w.md) || String(w.note || '').trim(); })); }
+  function prevSource() {
+    var h = S.history || {};
+    for (var d = addDays(cur, -1); d >= addDays(today(), -cfg().editWindowDays - 1); d = addDays(d, -1)) {
+      var loc = S.entries[d], src = (loc && loc.state !== 'draft' && loc.state !== 'new') ? loc : (h[d] || null);
+      if (src && (hasContent(src) || isOff(src.type))) return { date: d, e: src };
+    }
+    return null;
+  }
+  function renderCopy() {
+    var b = $('copyPrev'), e = entry(cur);
+    var show = !(e && (hasContent(e) || e.updatedAt));
+    b.hidden = !show;
+    if (!show) return;
+    var p = prevSource();
+    b.innerHTML = '⧉ Copy previous day' + (p ? ' <small>(' + esc(pretty(p.date)) + ')</small>' : '');
+  }
+  function copyPrev() {
+    var go = function () {
+      var p = prevSource();
+      if (!p) return toast('No earlier day found to copy.');
+      var src = JSON.parse(JSON.stringify(p.e));
+      touch(function (x) {
+        x.type = normType(src.type); x.half = src.half || ''; x.workType = src.workType || '';
+        x.block = src.block || 120; x.map = src.map || {}; x.dayText = src.dayText || '';
+        x.invoiceable = src.invoiceable || ''; x.lunch = src.lunch || LC().start;
+        x.work = Array.isArray(src.work) ? src.work.map(function (w) { return { md: w.md, note: w.note }; }) : [];
+        if (!x.work.length && src.invoiceable === 'Yes' && (src.manDays || src.client)) x.work = [{ md: Number(src.manDays) || '', note: src.client || '' }];
+        rebucket(x);
+      });
+      if (S.entries[cur]) S.lastBlock = S.entries[cur].block;
+      persist(); renderLog();
+      toast('Copied from ' + pretty(p.date) + '. Change anything that is different, then Submit.');
+    };
+    if (!prevSource() && navigator.onLine) {
+      api('history').then(function (r) { var h = {}; r.history.forEach(function (e) { h[e.date] = e; }); S.history = h; persist(); go(); }).catch(go);
+    } else go();
+  }
+
   function renderLog() {
-    renderDate(); renderTypes(); renderSlots(); refreshSameButtons();
+    renderDate(); renderCopy(); renderTypes(); renderSlots(); refreshSameButtons();
     var s = $('summary'); s.value = viewEntry().summary || ''; autosize(s);
     renderNotice(); renderBar();
   }
@@ -958,6 +1002,7 @@ if (!window.QTS_IOS) document.write('<link rel="manifest" href="manifest.webmani
     $('next').onclick = function () { openDate(addDays(cur, 1)); };
     $('dateIn').onchange = function () { if (this.value) openDate(this.value); };
     $('submit').onclick = submit;
+    $('copyPrev').onclick = copyPrev;
     $('pill').onclick = function () { if (!navigator.onLine) return toast('You are offline. Entries are safe on this device.'); sync().then(function () { if (tab === 'hist') loadHistory(); else openDate(cur); }); };
     $('summary').oninput = function () { autosize(this); var v = this.value; touch(function (x) { x.summary = v; }); renderNotice(); renderBar(); };
     window.addEventListener('online', function () { renderPill(); renderNotice(); sync().then(function () { if (tab === 'hist') loadHistory(); }); });
