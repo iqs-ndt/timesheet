@@ -63,7 +63,16 @@
     '#cbar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(255,255,255,.97);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}' +
     '#cbar .wrap{display:flex;align-items:center;gap:12px}#cbar .t{flex:1;font-size:13px;color:var(--muted)}#cbar .t b{display:block;color:var(--navy);font-size:17px}' +
     '#cbar button{border:0;border-radius:12px;background:var(--orange);color:#fff;font-weight:700;font-size:16px;padding:13px 20px;min-width:150px}#cbar button:disabled{opacity:.6}' +
-    '.empty{padding:18px;text-align:center;color:var(--muted);font-size:14px}';
+    '.empty{padding:18px;text-align:center;color:var(--muted);font-size:14px}' +
+    /* compact controls (v17, tight) */
+    '.cl-back{padding:4px 9px;border-radius:8px}.cl-new{gap:6px}.cl-new button{padding:7px 10px;gap:9px;border-radius:10px}.cl-new button i{width:28px;height:28px;font-size:15px;border-radius:8px}' +
+    '.cl-list .row{padding:7px 10px}.cl-acts{gap:6px}.cl-acts button,.cl-acts a{padding:4px 8px;border-radius:7px}' +
+    '.cl-card{padding:8px 9px;margin-bottom:8px;border-radius:10px}.cl-card>h3 button{width:26px;height:26px;font-size:15px}' +
+    '.f input,.f select,.f textarea{padding:5px 8px;min-height:32px;font-size:16px;border-radius:7px}.f textarea{min-height:46px}' +
+    '#tab-claims .seg button{padding:4px 5px;border-radius:7px}' +
+    '.plus{padding:4px 10px;border-radius:7px}.plus.big{padding:7px;margin-bottom:8px}.ln{padding:6px;margin-bottom:6px}.ln .row1 input{padding:4px 7px;font-size:15px}' +
+    '.head>button{padding:6px 2px}.banner{padding:6px 9px;margin-bottom:8px}.adv label,.ts label{padding:5px 2px}.sum td{padding:3px 0}' +
+    '.kmrow input{padding:5px 7px}#cbar{padding:6px 10px calc(6px + env(safe-area-inset-bottom))}#cbar button{padding:8px 16px;font-size:16px;border-radius:9px;min-width:128px}';
   function injectCss() { if ($('cl-css')) return; var s = document.createElement('style'); s.id = 'cl-css'; s.textContent = css; document.head.appendChild(s); }
 
   // ---------- helpers ----------
