@@ -20,12 +20,12 @@
     '.cl-list .row b{display:block;color:var(--navy);font-size:14.5px}.cl-list .row small{display:block;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.cl-list .amt{font-weight:700;font-size:13.5px;color:var(--ink);text-align:right;white-space:nowrap}' +
     '.st{display:inline-block;font-size:11.5px;font-weight:700;border-radius:99px;padding:2px 8px;margin-top:3px}' +
-    '.st-p{background:#fff5df;color:#7a5508}.st-a{background:#e8f1fb;color:#174f86}.st-r{background:#fdecea;color:#8e2a1f}.st-d{background:#e7f6ef;color:#17694a}.st-dr{background:#eef2f6;color:#3d5164}' +
+    '.st-p{background:#fff5df;color:#7a5508}.st-a{background:#e8f1fb;color:#174f86}.st-r{background:#fdecea;color:#8e2a1f}.st-d{background:#e7f6ef;color:#17694a}.st-dr{background:#eef2f6;color:#3d5164}.st-w{background:#f1eef6;color:#5b4a7a}' +
     '.cl-det{padding:4px 12px 12px;border-top:1px dashed var(--line);background:#fbfcfd;font-size:13.5px}' +
     '.cl-det table{width:100%;border-collapse:collapse;margin:6px 0}.cl-det td{padding:4px 0;vertical-align:top}.cl-det td:last-child{text-align:right;font-weight:700}' +
     '.cl-det .cm{background:#fff8f3;border-left:4px solid var(--orange);padding:8px 10px;margin:6px 0;border-radius:4px}' +
     '.cl-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.cl-acts button,.cl-acts a{flex:1;text-align:center;text-decoration:none;border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:10px;padding:9px 10px;font-weight:700;font-size:14px}' +
-    '.cl-acts .pri{background:var(--navy);color:#fff}.cl-acts .del{border-color:#d9a3a3;color:#a33}' +
+    '.cl-acts .pri{background:var(--navy);color:#fff}.cl-acts .del{border-color:#d9a3a3;color:#a33}.cl-acts .wd{border-color:#c98a8a;color:#a33}' +
     '.cl-card{background:#fff;border:1px solid #e6ebf0;border-radius:12px;box-shadow:-3px 3px 13px rgba(0,0,0,.05);padding:12px;margin-bottom:12px}' +
     '.cl-card>h3{margin:0 0 10px;font-size:15px;color:var(--navy);display:flex;align-items:center;gap:8px}.cl-card>h3 span{flex:1}' +
     '.cl-card>h3 button{border:0;background:#f3f5f8;color:#a33;border-radius:8px;width:32px;height:32px;font-size:18px;line-height:1}' +
@@ -267,7 +267,7 @@
     }).join('') + '<button type="button" class="plus" data-act="addLine" data-path="' + path + '">+ ' + esc(opt.addLabel || 'Add line') + '</button>';
   }
   function statusChip(st) {
-    var cls = /pending/i.test(st) ? 'st-p' : /approved/i.test(st) ? 'st-a' : /reject/i.test(st) ? 'st-r' : /paid/i.test(st) ? 'st-d' : 'st-dr';
+    var cls = /pending/i.test(st) ? 'st-p' : /approved/i.test(st) ? 'st-a' : /reject/i.test(st) ? 'st-r' : /paid/i.test(st) ? 'st-d' : /withdrawn/i.test(st) ? 'st-w' : 'st-dr';
     return '<span class="st ' + cls + '">' + esc(st) + '</span>';
   }
 
@@ -304,11 +304,12 @@
           '<tr><td>Submitted</td><td>' + esc(String(r.submitted).slice(0, 16)) + (r.revision > 1 ? ' (rev ' + r.revision + ')' : '') + '</td></tr></table>' +
           (r.comment ? '<div class="cm"><b>Manager:</b> ' + esc(r.comment) + '</div>' : '') +
           '<div class="cl-acts">' + (r.view ? '<a href="' + esc(r.view) + '" target="_blank" rel="noopener">View full ' + (r.kind === 'advance' ? 'request' : 'claim') + '</a>' : '') +
-          (r.status === 'Rejected' ? '<button type="button" class="pri" data-act="resubmit" data-no="' + esc(r.no) + '">Edit &amp; resubmit</button>' : '') + '</div></div>';
+          (r.status === 'Rejected' || r.status === 'Withdrawn' ? '<button type="button" class="pri" data-act="resubmit" data-no="' + esc(r.no) + '">Edit &amp; resubmit</button>' : '') +
+          (r.status === 'Pending approval' ? '<button type="button" class="wd" data-act="withdraw" data-no="' + esc(r.no) + '">Withdraw</button>' : '') + '</div></div>';
       }
       return '<div class="row" data-act="toggleRec" data-no="' + esc(r.no) + '"><div class="g"><b>' + esc(title) + '</b><small>' + esc(sub) + '</small>' + statusChip(r.status) + '</div><div class="amt">' + esc(shownAmt) + '</div></div>' + det;
     }).join('') + '</div>';
-    h += '<p class="muted foot">Your manager approves each claim; accounts is copied. Rejected claims can be edited and resubmitted.</p>';
+    h += '<p class="muted foot">Your manager approves each claim; accounts is copied. You can withdraw a claim until your manager acts on it. Rejected or withdrawn claims can be edited and resubmitted.</p>';
     root.innerHTML = h;
   }
   function kindName(k) { return k === 'local' ? 'Local conveyance' : k === 'outstation' ? 'Outstation conveyance' : 'Advance request'; }
@@ -556,6 +557,7 @@
       case 'home': flash = ''; renderHome(); window.scrollTo(0, 0); refresh(); return;
       case 'toggleRec': openRec = openRec === t.dataset.no ? null : t.dataset.no; renderHome(); return;
       case 'resubmit': return resubmit(t.dataset.no);
+      case 'withdraw': return withdraw(t.dataset.no, t);
       case 'discard':
         if (!confirm(d.no ? 'Stop editing? Your changes on this phone will be removed.' : 'Delete this draft?')) return;
         filesOf(d).forEach(function (f) { if (f.lid && !f.id) delFile(f.lid); });
@@ -743,6 +745,19 @@
       Q.toast(e.message);
       if (/advance|currency/i.test(e.message)) refresh();
     });
+  }
+
+  function withdraw(no, btn) {
+    if (!online()) return Q.toast('Withdrawing needs internet.');
+    var isAdv = /^ADV/.test(no);
+    if (!confirm('Withdraw ' + (isAdv ? 'advance request ' : 'claim ') + no + '?\n\nYour manager will be told it is withdrawn and will not need to approve it. You can edit and send it again later with the same number.')) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Withdrawing…'; }
+    Q.api('withdraw', { no: no }).then(function () {
+      (S().claimRecords || []).forEach(function (r) { if (r.no === no) r.status = 'Withdrawn'; });
+      Q.persist(); openRec = no;
+      flash = '<div class="banner ok"><b>' + esc(no) + ' withdrawn.</b> Your manager has been told. Tap it and choose <b>Edit &amp; resubmit</b> if you want to send it again.</div>';
+      renderHome(); window.scrollTo(0, 0); refresh();
+    }).catch(function (e) { if (btn) { btn.disabled = false; btn.textContent = 'Withdraw'; } Q.toast(e.message); });
   }
 
   function resubmit(no) {
