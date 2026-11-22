@@ -95,6 +95,7 @@
     if (d.prevFY) h += '<div class="banner err"><b>Previous financial year.</b> This includes dates before ' + esc(pretty(V.fyStart)) + '. Accepting it needs your explicit approval.</div>';
     if (V.status === 'Rejected') h += '<div class="banner err">Rejected by ' + esc(V.decidedBy) + (V.decidedOn ? ' on ' + esc(String(V.decidedOn).slice(0, 10)) : '') + (V.comment ? ': “' + esc(V.comment) + '”' : '') + '</div>';
     if (V.status === 'Approved' || V.status === 'Paid') h += '<div class="banner ok">Approved by ' + esc(V.decidedBy) + (V.decidedOn ? ' on ' + esc(String(V.decidedOn).slice(0, 10)) : '') + (V.comment ? ': “' + esc(V.comment) + '”' : '') + '</div>';
+    if (V.status === 'Withdrawn') h += '<div class="banner info"><b>Withdrawn</b> by ' + esc(V.member.name) + (V.decidedOn ? ' on ' + esc(String(V.decidedOn).slice(0, 10)) : '') + '. Nothing to approve.</div>';
     if (V.status === 'Paid') h += '<div class="banner ok"><b>Paid</b> ' + esc(V.paidText || '') + ' on ' + esc(pretty(V.paidOn)) + (V.paymentRef ? ' · ref ' + esc(V.paymentRef) : '') + '</div>';
 
     h += '<div class="card"><table class="kv"><tr><td>Employee</td><td>' + esc(V.member.name) + ' · ' + esc(V.member.dept) + ' (' + esc(V.member.id) + ')</td></tr><tr><td>Approver</td><td>' + esc(V.manager) + '</td></tr>';
@@ -122,7 +123,7 @@
       if (it.bikeKm) rows.push(['Bike · ' + it.bikeKm + ' km', it.bike]);
       if (it.carKm) rows.push(['Car · ' + it.carKm + ' km', it.car]);
       if (it.publicTransport) rows.push(['Public transport', it.publicTransport]);
-      if (it.allowance) rows.push(['Daily allowance · ' + it.fullDays + ' full × ' + it.rates.full + (it.halfDays ? ' + ' + it.halfDays + ' half × ' + it.rates.half : ''), it.allowance]);
+      if (it.allowance) rows.push(['Daily allowance · ' + [it.fullDays ? it.fullDays + ' full day × ₹' + it.rates.full : '', it.halfDays ? it.halfDays + ' half day × ₹' + it.rates.half : ''].filter(String).join(' + '), it.allowance]);
       if (it.overnight) rows.push(['Overnight stay · ' + it.nights + ' × ' + it.rates.night, it.overnight]);
       (d.oop || []).forEach(function (t) { rows.push(['Out-of-pocket: ' + t.details + (t.date ? ' (' + pretty(t.date) + ')' : ''), t.amount, t.files]); });
       h += '<h3 style="margin-top:14px">Amounts</h3><table class="tbl">' + rows.map(function (r) { return '<tr><td>' + esc(r[0]) + (r[2] ? files(r[2]) : '') + '</td><td class="r">₹ ' + amt(r[1]) + '</td></tr>'; }).join('') + '</table></div>';
