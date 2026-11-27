@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>QInsight · Timesheet admin</title>
+<link rel="icon" href="icon-192.png">
+<script src="config.js"></script>
+<style>
+@font-face{font-family:'QI Calibri';src:local('Calibri'),url(https://cdn.jsdelivr.net/npm/@fontsource/carlito@5.3.0/files/carlito-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'QI Calibri';src:local('Calibri Bold'),local('Calibri-Bold'),url(https://cdn.jsdelivr.net/npm/@fontsource/carlito@5.3.0/files/carlito-latin-700-normal.woff2) format('woff2');font-weight:600 900;font-display:swap}
+:root{--ink:#2c3e50;--navy:#0e2841;--muted:#5a6a7a;--line:#dde3ea;--bg:#f6f8fa;--card:#fff;--teal:#156082;--orange:#e97132;--amber:#f59a35;--green:#1f8a5b;--red:#b23b2e;--soft:#eef3f7}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.35 'QI Calibri',Calibri,Carlito,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--teal)}
+header{position:sticky;top:0;z-index:5;background:#fff;box-shadow:0 1px 0 var(--line),0 2px 10px rgba(14,40,65,.05);padding:14px 14px 0}
+.cb{position:absolute;left:0;top:0;pointer-events:none}.cb::before,.cb::after{content:"";position:absolute;display:block}
+.cb::before{left:0;top:0;width:110px;height:7px;background:var(--navy)}.cb::after{left:0;top:7px;width:74px;height:5px;background:var(--amber)}
+.wrap{max-width:1040px;margin:0 auto}
+.hrow{display:flex;align-items:center;gap:12px}
+.brand{height:30px;display:block}
+.ttl{font-weight:700;font-size:18px;color:var(--navy);line-height:1.1}
+.who{font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grow{flex:1;min-width:0}
+.tabs{display:flex;gap:4px;margin-top:10px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:7px 12px 8px;font-size:16px;color:var(--muted);cursor:pointer;white-space:nowrap;font-weight:600}
+.tabs button.on{color:var(--navy);border-color:var(--orange)}
+main{padding:12px 12px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+h2{font-size:18px;color:var(--navy);margin:0 0 8px}
+h3{font-size:16px;color:var(--navy);margin:14px 0 6px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 10px}
+label{display:block;font-size:14px;font-weight:600;color:var(--navy);margin:8px 0 3px}
+input[type=text],input[type=email],input[type=date],input[type=time],input[type=number],select,textarea{width:100%;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;min-height:34px;font-size:16px}
+textarea{min-height:52px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(21,96,130,.25);border-color:var(--teal)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:15px;color:var(--navy)}
+.btn:hover{background:var(--soft)}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.pri:hover{background:#1b3a5c}
+.btn.warn{color:var(--red);border-color:#e3b9b3}
+.btn.sm{padding:3px 9px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.row>*{flex:1;min-width:140px}
+.row>.fit{flex:none;min-width:0}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;cursor:pointer;font-size:15px;color:var(--navy)}
+.seg button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.msg{border-radius:8px;padding:8px 10px;margin:8px 0;font-size:15px}
+.msg.ok{background:#e8f5ee;color:#1d5e40}.msg.err{background:#fbecea;color:#8a2d23}.msg.info{background:var(--soft);color:var(--navy)}.msg.warn{background:#fff4e5;color:#8a5200}
+.muted{color:var(--muted)}.small{font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:5px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--navy);color:#fff;font-weight:600;position:sticky;top:0}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.tot td{font-weight:700;background:var(--soft)}
+.tbl{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:8px}
+.chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700}
+.chip.new{background:#e8f5ee;color:#1d5e40}.chip.exists{background:#eef1f4;color:#4a5866}.chip.error{background:#fbecea;color:#8a2d23}.chip.saved{background:#dff0ff;color:#14507a}.chip.off{background:#fbecea;color:#8a2d23}
+.member{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.member:last-child{border-bottom:0}
+.member .nm{font-weight:700;color:var(--navy)}
+.member .acts{display:flex;gap:6px;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:8px 0}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+.kpi b{display:block;font-size:22px;color:var(--navy);line-height:1.1}
+.kpi span{font-size:13px;color:var(--muted)}
+.act{display:grid;grid-template-columns:110px 110px 1fr 34px;gap:6px;margin-bottom:6px;align-items:start}
+.wk{display:grid;grid-template-columns:110px 1fr 34px;gap:6px;margin-bottom:6px}
+.x{border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;height:34px;color:var(--muted)}
+.hidden{display:none!important}
+.center{max-width:420px;margin:40px auto}
+.prog{height:8px;background:var(--soft);border-radius:4px;overflow:hidden;margin:8px 0}.prog i{display:block;height:100%;background:var(--teal);width:0}
+canvas{max-width:100%}
+@media (max-width:600px){.act{grid-template-columns:1fr 1fr 34px}.act textarea{grid-column:1/3}.act .x{grid-row:1;grid-column:3}}
+</style>
+</head>
+<body>
+<header><i class="cb"></i>
+  <div class="wrap">
+    <div class="hrow">
+      <img class="brand" src="logo.png" alt="QInsight Consol Pvt Ltd">
+      <div class="grow"><div class="ttl">Timesheet admin</div><div class="who" id="who">Editors of the master sheet</div></div>
+      <button class="btn sm hidden" id="signout">Sign out</button>
+    </div>
+    <nav class="tabs hidden" id="tabs">
+      <button data-tab="team" class="on">Team</button>
+      <button data-tab="fill">Fill in a day</button>
+      <button data-tab="upload">Bulk upload</button>
+      <button data-tab="reports">Reports</button>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <!-- sign in -->
+  <section id="login" class="center hidden">
+    <div class="card">
+      <h2>Sign in</h2>
+      <p class="sub">For people with editor access to the timesheet sheet. We email you a 6-digit code.</p>
+      <div id="stepEmail">
+        <label for="email">Your email</label>
+        <input type="email" id="email" autocomplete="email" placeholder="name@company.com">
+        <div style="margin-top:10px"><button class="btn pri" id="sendCode">Email me a code</button></div>
+      </div>
+      <div id="stepCode" class="hidden">
+        <label for="code">6-digit code</label>
+        <input type="text" id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456">
+        <div class="row" style="margin-top:10px"><button class="btn pri fit" id="verify">Sign in</button><button class="btn fit" id="back">Use another email</button></div>
+      </div>
+      <div id="loginMsg"></div>
+    </div>
+  </section>
+
+  <!-- team -->
+  <section id="tab-team" class="hidden">
+    <div class="card">
+      <div class="row"><div><h2 style="margin:0">Team members</h2><div class="sub" id="teamCount" style="margin:2px 0 0"></div></div>
+        <input type="text" id="teamSearch" placeholder="Search name, ID, department or email" style="max-width:320px">
+        <button class="btn pri fit" id="addToggle">+ Add member</button></div>
+      <div id="addForm" class="hidden" style="margin-top:10px;padding-top:6px;border-top:1px solid var(--line)">
+        <div class="row">
+          <div><label>Full name *</label><input type="text" id="aName"></div>
+          <div><label>Department *</label><input type="text" id="aDept" list="deptList"></div>
+        </div>
+        <div class="row">
+          <div><label>Email (for link, reminders, weekly summary)</label><input type="email" id="aEmail"></div>
+          <div><label>Manager email (gets challenge alerts)</label><input type="email" id="aMgr"></div>
+        </div>
+        <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="aSend" checked> Email the personal link to them now</label>
+        <div class="row" style="margin-top:6px"><button class="btn pri fit" id="aSave">Add member</button><button class="btn fit" id="aCancel">Cancel</button></div>
+      </div>
+      <div id="teamMsg"></div>
+      <div id="teamList" style="margin-top:6px"></div>
+    </div>
+  </section>
+
+  <!-- fill in -->
+  <section id="tab-fill" class="hidden">
+    <div class="card">
+      <h2>Fill in a day for a team member</h2>
+      <p class="sub">Days the member has already filled in are never changed. A day entered here is marked "Entered by" with your email. Any past date can be filled in.</p>
+      <div class="row">
+        <div><label>Team member</label><select id="fMember"></select></div>
+        <div style="max-width:200px"><label>Date</label><input type="date" id="fDate"></div>
+      </div>
+      <div id="fStatus"></div>
+      <label>Day type</label>
+      <div class="seg" id="fType"></div>
+      <div id="fLeave" class="hidden">
+        <div class="row">
+          <div><label>Leave / comp off</label><div class="seg" id="fHalf"><button data-v="" class="on">Full day</button><button data-v="First">First half</button><button data-v="Second">Second half</button></div></div>
+          <div id="fWorkedBox" class="hidden" style="max-width:220px"><label>Worked the other half as</label><select id="fWorked"></select></div>
+        </div>
+      </div>
+      <div id="fActsBox">
+        <div id="fFullBox" class="hidden" style="margin-top:8px"><label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" id="fFull"> Full day (no times) — one description for the whole day</label></div>
+        <h3>Activities</h3>
+        <div class="small muted" style="margin:-4px 0 6px" id="fActHint">24-hour times. Times round to 30 minutes. Lunch (13:00–13:30) is taken out automatically.</div>
+        <div id="fActs"></div>
+        <button class="btn sm" id="fAddAct">+ Add activity</button>
+      </div>
+      <div id="fInvBox">
+        <h3>Invoiceable to client?</h3>
+        <div class="seg" id="fInv"><button data-v="Yes">Invoiceable</button><button data-v="No">Non-invoiceable</button></div>
+        <div id="fWorkBox" class="hidden" style="margin-top:8px">
+          <div id="fWork"></div>
+          <button class="btn sm" id="fAddWork">+ Add another</button>
+        </div>
+      </div>
+      <h3>Challenge, bottleneck or dependency <span class="muted small">(optional)</span></h3>
+      <textarea id="fChal" placeholder="Leave empty if none"></textarea>
+      <div style="margin-top:10px" class="row"><button class="btn pri fit" id="fSave">Save this day</button><button class="btn fit" id="fClear">Clear form</button></div>
+      <div id="fMsg"></div>
+    </div>
+  </section>
+
+  <!-- upload -->
+  <section id="tab-upload" class="hidden">
+    <div class="card">
+      <h2>Bulk upload</h2>
+      <p class="sub">Upload an Excel (.xlsx) or CSV file with one row per activity. You will see a check of every row before anything is saved. Days already filled in are skipped.</p>
+      <div class="row"><button class="btn fit" id="tplBtn">Download the Excel template</button>
+        <label class="btn pri fit" style="margin:0;display:inline-block">Choose file…<input type="file" id="upFile" accept=".xlsx,.xls,.csv" class="hidden"></label></div>
+      <div id="upMsg"></div>
+      <div class="prog hidden" id="upProg"><i></i></div>
+      <div id="upPreview"></div>
+    </div>
+  </section>
+
+  <!-- reports -->
+  <section id="tab-reports" class="hidden">
+    <div class="card">
+      <h2>Reports</h2>
+      <div class="row">
+        <div style="max-width:220px"><label>Period</label><div class="seg" id="rMode"><button data-v="month" class="on">Month</button><button data-v="range">Date range</button><button data-v="day">One day</button></div></div>
+        <div id="rMonthBox" style="max-width:180px"><label>Month</label><select id="rMonth"></select></div>
+        <div id="rRangeBox" class="hidden row" style="flex:2"><div><label>From</label><input type="date" id="rFrom"></div><div><label>To</label><input type="date" id="rTo"></div></div>
+        <div id="rDayBox" class="hidden" style="max-width:200px"><label>Date</label><input type="date" id="rDay"></div>
+      </div>
+      <div class="row">
+        <div><label>Department</label><select id="rDept"></select></div>
+        <div><label>Team member</label><select id="rMember"></select></div>
+        <div><label>Day type</label><select id="rType"></select></div>
+        <div><label>Invoiceable</label><select id="rInv"><option value="">All</option><option>Yes</option><option>No</option></select></div>
+        <div><label>Client / job contains</label><input type="text" id="rClient" placeholder="optional"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn pri fit" id="rRun">Show report</button>
+        <button class="btn fit" id="rXlsx" disabled>Download Excel</button>
+        <button class="btn fit" id="rDocx" disabled>Download report (Word)</button>
+      </div>
+      <div id="rMsg"></div>
+    </div>
+    <div id="rOut"></div>
+  </section>
+</main>
+<datalist id="deptList"></datalist>
+
+<script>
+(function () {
+  'use strict';
+  var API = (window.QTS_CONFIG || {}).API_URL;
+  var LIBS = { xlsx: 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', docx: 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js' };
+  var S = { session: null, email: '', cfg: null, team: [], today: '', report: null };
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var show = function (el, on) { (typeof el === 'string' ? $(el) : el).classList.toggle('hidden', !on); };
+  var msg = function (id, kind, html) { $(id).innerHTML = html ? '<div class="msg ' + kind + '">' + html + '</div>' : ''; };
+  var r2 = function (x) { return Math.round((Number(x) || 0) * 100) / 100; };
+  var fmtN = function (x) { var v = r2(x); return v === 0 ? '0' : String(v); };
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var prettyDate = function (d) { var p = d.split('-'); return (+p[2]) + ' ' + MON[+p[1] - 1] + ' ' + p[0]; };
+
+  function call(action, extra) {
+    var body = Object.assign({ action: action }, extra || {});
+    if (S.session && !/^ed(Login|Verify)$/.test(action)) body.session = S.session;
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), redirect: 'follow' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.ok) { if (j.code === 'BAD_SESSION' || j.code === 'NOT_EDITOR') signOut(j.error); throw new Error(j.error || 'Something went wrong.'); }
+        return j;
+      }, function (e) { if (e && /Failed to fetch|NetworkError|Load failed/i.test(e.message)) throw new Error('No connection to the timesheet service. Check the internet and try again.'); throw e; });
+  }
+  var libCache = {};
+  function lib(name) {
+    if (libCache[name]) return libCache[name];
+    libCache[name] = new Promise(function (ok, no) {
+      var s = document.createElement('script'); s.src = LIBS[name]; s.onload = function () { ok(); }; s.onerror = function () { delete libCache[name]; no(new Error('Could not load the ' + name + ' helper. Check the internet and try again.')); };
+      document.head.appendChild(s);
+    });
+    return libCache[name];
+  }
+  function saveBlob(blob, name) {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  }
+
+  // ---------------- sign in ----------------
+  function signOut(why) {
+    if (S.session) call('edLogout').catch(function () {});
+    S.session = null; try { localStorage.removeItem('qiAdmin'); } catch (e) {}
+    show('tabs', false); show('signout', false); ['team', 'fill', 'upload', 'reports'].forEach(function (t) { show('tab-' + t, false); });
+    $('who').textContent = 'Editors of the master sheet';
+    show('login', true); show('stepEmail', true); show('stepCode', false);
+    msg('loginMsg', why ? 'info' : '', why ? esc(why) : '');
+  }
+  $('sendCode').onclick = function () {
+    var e = $('email').value.trim(); if (!e) return msg('loginMsg', 'err', 'Please type your email.');
+    $('sendCode').disabled = true; msg('loginMsg', 'info', 'Sending…');
+    call('edLogin', { email: e }).then(function (r) {
+      $('sendCode').disabled = false;
+      if (!r.sent) return msg('loginMsg', 'err', 'This email does not have editor access to the timesheet sheet. Ask the sheet owner to add you as an editor.');
+      show('stepEmail', false); show('stepCode', true); $('code').value = ''; $('code').focus();
+      msg('loginMsg', 'ok', 'Code sent to <b>' + esc(e) + '</b>. It works for 10 minutes.');
+    }).catch(function (x) { $('sendCode').disabled = false; msg('loginMsg', 'err', esc(x.message)); });
+  };
+  $('email').onkeydown = function (ev) { if (ev.key === 'Enter') $('sendCode').click(); };
+  $('code').onkeydown = function (ev) { if (ev.key === 'Enter') $('verify').click(); };
+  $('back').onclick = function () { show('stepEmail', true); show('stepCode', false); msg('loginMsg'); };
+  $('verify').onclick = function () {
+    $('verify').disabled = true;
+    call('edVerify', { email: $('email').value.trim(), code: $('code').value.trim() }).then(function (r) {
+      $('verify').disabled = false;
+      S.session = r.session;
+      try { localStorage.setItem('qiAdmin', JSON.stringify({ s: r.session, e: r.email, until: Date.now() + r.hours * 3600e3 })); } catch (e) {}
+      start();
+    }).catch(function (x) { $('verify').disabled = false; msg('loginMsg', 'err', esc(x.message)); });
+  };
+  $('signout').onclick = function () { signOut('You are signed out.'); };
+
+  function start() {
+    show('login', false);
+    call('edHello').then(function (r) {
+      S.email = r.email; S.cfg = r.config; S.today = r.today;
+      $('who').textContent = r.email; show('signout', true); show('tabs', true);
+      $('deptList').innerHTML = S.cfg.depts.map(function (d) { return '<option value="' + esc(d) + '">'; }).join('');
+      initFill(); initReports();
+      tab(location.hash.replace('#', '') || 'team');
+      loadTeam();
+    }).catch(function (x) { if (S.session) msg('teamMsg', 'err', esc(x.message)); });
+  }
+  function tab(t) {
+    if (['team', 'fill', 'upload', 'reports'].indexOf(t) < 0) t = 'team';
+    [].forEach.call(document.querySelectorAll('#tabs button'), function (b) { b.classList.toggle('on', b.dataset.tab === t); });
+    ['team', 'fill', 'upload', 'reports'].forEach(function (x) { show('tab-' + x, x === t); });
+    if (location.hash !== '#' + t) history.replaceState(null, '', '#' + t);
+  }
+  $('tabs').onclick = function (ev) { var b = ev.target.closest('button'); if (b) tab(b.dataset.tab); };
+
+  // ---------------- team ----------------
+  function loadTeam() {
+    return call('edTeam').then(function (r) { S.team = r.team; renderTeam(); fillMemberSelects(); }).catch(function (x) { msg('teamMsg', 'err', esc(x.message)); });
+  }
+  function renderTeam() {
+    var q = $('teamSearch').value.trim().toLowerCase();
+    var list = S.team.filter(function (m) { return !q || [m.name, m.id, m.dept, m.email].join(' ').toLowerCase().indexOf(q) >= 0; })
+      .sort(function (a, b) { return a.dept < b.dept ? -1 : a.dept > b.dept ? 1 : a.name < b.name ? -1 : 1; });
+    $('teamCount').textContent = S.team.filter(function (m) { return m.active; }).length + ' active · ' + S.team.length + ' in total';
+    $('teamList').innerHTML = list.map(function (m) {
+      return '<div class="member"><div class="grow"><div class="nm">' + esc(m.name) + (m.active ? '' : ' <span class="chip off">switched off</span>') + '</div>' +
+        '<div class="small muted">' + esc(m.id) + ' · ' + esc(m.dept) + (m.email ? ' · ' + esc(m.email) : ' · <i>no email</i>') + '</div>' +
+        '<div class="small muted">Last logged: ' + (m.last && m.last !== '—' ? esc(prettyDate(m.last)) : '—') + ' · days logged in last 30: ' + m.days30 + '</div></div>' +
+        '<div class="acts">' + (m.link ? '<button class="btn sm" data-a="copy" data-id="' + esc(m.id) + '">Copy link</button>' +
+        '<button class="btn sm" data-a="mail" data-id="' + esc(m.id) + '"' + (m.email ? '' : ' disabled title="No email in the Team tab"') + '>Email link</button>' : '') +
+        '<button class="btn sm warn" data-a="new" data-id="' + esc(m.id) + '">' + (m.link ? 'New link' : 'Make link') + '</button></div></div>';
+    }).join('') || '<p class="muted">No team members match.</p>';
+  }
+  $('teamSearch').oninput = renderTeam;
+  $('addToggle').onclick = function () { show('addForm', $('addForm').classList.contains('hidden')); $('aName').focus(); };
+  $('aCancel').onclick = function () { show('addForm', false); };
+  $('aSave').onclick = function () {
+    var v = { name: $('aName').value.trim(), dept: $('aDept').value.trim(), email: $('aEmail').value.trim(), mgr: $('aMgr').value.trim(), send: $('aSend').checked };
+    if (!v.name || !v.dept) return msg('teamMsg', 'err', 'Name and department are required.');
+    $('aSave').disabled = true; msg('teamMsg', 'info', 'Adding…');
+    call('edAdd', { args: v }).then(function (r) {
+      $('aSave').disabled = false; S.team = r.team; renderTeam(); fillMemberSelects();
+      ['aName', 'aEmail', 'aMgr'].forEach(function (id) { $(id).value = ''; });
+      msg('teamMsg', 'ok', '<b>' + esc(v.name) + '</b> added as ' + esc(r.member.id) + (r.member.sent ? ' · link emailed to ' + esc(v.email) : v.send && !v.email ? ' · no email given, so the link was not sent' : '') +
+        '.<br><span class="small">Personal link: <a href="' + esc(r.member.link) + '" target="_blank" rel="noopener">' + esc(r.member.link) + '</a></span>');
+    }).catch(function (x) { $('aSave').disabled = false; msg('teamMsg', 'err', esc(x.message)); });
+  };
+  var armed = null;
+  $('teamList').onclick = function (ev) {
+    var b = ev.target.closest('button[data-a]'); if (!b) return;
+    var m = S.team.filter(function (x) { return x.id === b.dataset.id; })[0]; if (!m) return;
+    if (b.dataset.a === 'copy') {
+      (navigator.clipboard ? navigator.clipboard.writeText(m.link) : Promise.reject()).then(function () { msg('teamMsg', 'ok', 'Link for <b>' + esc(m.name) + '</b> copied.'); },
+        function () { msg('teamMsg', 'info', 'Link for <b>' + esc(m.name) + '</b>: <a href="' + esc(m.link) + '" target="_blank" rel="noopener">' + esc(m.link) + '</a>'); });
+    } else if (b.dataset.a === 'mail') {
+      b.disabled = true;
+      call('edEmailLink', { args: { id: m.id } }).then(function (r) { b.disabled = false; msg('teamMsg', r.sent ? 'ok' : 'err', r.sent ? 'Link emailed to <b>' + esc(r.to) + '</b>.' : 'The email could not be sent.'); })
+        .catch(function (x) { b.disabled = false; msg('teamMsg', 'err', esc(x.message)); });
+    } else if (b.dataset.a === 'new') {
+      if (m.link && armed !== b) { if (armed) armed.textContent = 'New link'; armed = b; b.textContent = 'Sure? Old link stops'; setTimeout(function () { if (armed === b) { b.textContent = 'New link'; armed = null; } }, 5000); return; }
+      armed = null; b.disabled = true;
+      call('edNewLink', { args: { id: m.id } }).then(function (r) {
+        S.team = r.team; renderTeam();
+        msg('teamMsg', 'ok', 'New link made for <b>' + esc(m.name) + '</b>' + (m.link ? '; the old one no longer works' : '') + '. Use <b>Email link</b> to send it.');
+      }).catch(function (x) { b.disabled = false; msg('teamMsg', 'err', esc(x.message)); });
+    }
+  };
+  function fillMemberSelects() {
+    var act = S.team.filter(function (m) { return m.active; }).sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+    var cur = $('fMember').value;
+    $('fMember').innerHTML = '<option value="">Choose…</option>' + act.map(function (m) { return '<option value="' + esc(m.id) + '">' + esc(m.name) + ' · ' + esc(m.dept) + '</option>'; }).join('');
+    $('fMember').value = cur;
+    var depts = S.cfg.depts.slice(); S.team.forEach(function (m) { if (m.dept && depts.indexOf(m.dept) < 0) depts.push(m.dept); }); depts.sort();
+    var dc = $('rDept').value; $('rDept').innerHTML = '<option value="">All</option>' + depts.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join(''); $('rDept').value = dc;
+    rMembers();
+  }
+
+  // ---------------- fill in a day ----------------
+  var F = { type: 'Office', half: '', inv: '' };
+  function initFill() {
+    $('fDate').max = S.today; if (!$('fDate').value) $('fDate').value = S.today;
+    $('fType').innerHTML = S.cfg.dayTypes.map(function (t) { return '<button data-v="' + esc(t) + '"' + (t === F.type ? ' class="on"' : '') + '>' + esc(t) + '</button>'; }).join('');
+    $('fWorked').innerHTML = S.cfg.dayTypes.filter(function (t) { return S.cfg.offTypes.indexOf(t) < 0; }).map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+    if (!$('fActs').children.length) { addAct(); }
+    if (!$('fWork').children.length) addWork();
+    fillLayout();
+  }
+  function addAct(v) {
+    v = v || {};
+    var d = document.createElement('div'); d.className = 'act';
+    d.innerHTML = '<input type="time" step="1800" class="aS" value="' + esc(v.start || '') + '" aria-label="Start">' +
+      '<input type="time" step="1800" class="aE" value="' + esc(v.end || '') + '" aria-label="End">' +
+      '<textarea class="aT" rows="1" placeholder="What was done" style="min-height:34px">' + esc(v.text || '') + '</textarea><button class="x" title="Remove">×</button>';
+    d.querySelector('.x').onclick = function () { d.remove(); if (!$('fActs').children.length) addAct(); };
+    $('fActs').appendChild(d);
+  }
+  function addWork() {
+    var d = document.createElement('div'); d.className = 'wk';
+    d.innerHTML = '<select class="wMd">' + S.cfg.manDays.map(function (m) { return '<option value="' + m + '">' + m + ' man-day</option>'; }).join('') + '</select>' +
+      '<input type="text" class="wNote" placeholder="Client first, then a short note — e.g. Tata Projects – UT report"><button class="x" title="Remove">×</button>';
+    d.querySelector('.x').onclick = function () { d.remove(); if (!$('fWork').children.length) addWork(); };
+    $('fWork').appendChild(d);
+  }
+  $('fAddAct').onclick = function () { addAct(); };
+  $('fAddWork').onclick = function () { addWork(); };
+  function segPick(el, cb) { el.onclick = function (ev) { var b = ev.target.closest('button'); if (!b) return; [].forEach.call(el.children, function (x) { x.classList.toggle('on', x === b); }); cb(b.dataset.v); }; }
+  segPick($('fType'), function (v) { F.type = v; fillLayout(); });
+  segPick($('fHalf'), function (v) { F.half = v; fillLayout(); });
+  segPick($('fInv'), function (v) { F.inv = v; fillLayout(); });
+  $('fFull').onchange = fillLayout;
+  $('fWorked').onchange = fillLayout;
+  function fillLayout() {
+    if (!S.cfg) return;
+    var leave = S.cfg.offTypes.indexOf(F.type) >= 0, fullLeave = leave && !F.half;
+    var worked = leave ? $('fWorked').value : F.type;
+    show('fLeave', leave); show('fWorkedBox', leave && !!F.half);
+    var canFull = !leave && S.cfg.fullDayTypes.indexOf(F.type) >= 0;
+    show('fFullBox', canFull); if (!canFull) $('fFull').checked = false;
+    show('fActsBox', !fullLeave);
+    var full = $('fFull').checked;
+    [].forEach.call(document.querySelectorAll('#fActs .aS, #fActs .aE'), function (i) { i.style.visibility = full ? 'hidden' : ''; });
+    show('fAddAct', !full); show('fActHint', !full);
+    show('fInvBox', !fullLeave && S.cfg.invoiceTypes.indexOf(worked) >= 0);
+    show('fWorkBox', F.inv === 'Yes');
+  }
+  function checkDay() {
+    var id = $('fMember').value, d = $('fDate').value;
+    if (!id || !d) return msg('fStatus');
+    call('edDay', { args: { id: id, date: d } }).then(function (r) {
+      if (id !== $('fMember').value || d !== $('fDate').value) return;
+      if (!r.entry) return msg('fStatus', 'info', 'Not filled in yet.');
+      if (!r.entry.by) return msg('fStatus', 'warn', 'The member has already filled in this day (' + esc(r.entry.type) + ', ' + fmtN(r.entry.hours) + ' h). It cannot be changed here.');
+      msg('fStatus', 'info', 'Entered earlier by ' + esc(r.entry.by) + ' (' + esc(r.entry.type) + ', ' + fmtN(r.entry.hours) + ' h). Saving will replace it.');
+    }).catch(function (x) { msg('fStatus', 'err', esc(x.message)); });
+  }
+  $('fMember').onchange = checkDay; $('fDate').onchange = checkDay;
+  function fillDay() {
+    var m = S.team.filter(function (x) { return x.id === $('fMember').value; })[0];
+    var leave = S.cfg.offTypes.indexOf(F.type) >= 0, full = $('fFull').checked;
+    var acts = [].map.call(document.querySelectorAll('#fActs .act'), function (a) {
+      return { start: full ? '' : a.querySelector('.aS').value, end: full ? '' : a.querySelector('.aE').value, text: a.querySelector('.aT').value.trim() };
+    }).filter(function (a) { return a.text || a.start || a.end; });
+    if (leave && !F.half) acts = [];
+    var worked = leave ? $('fWorked').value : F.type, invOn = !(leave && !F.half) && S.cfg.invoiceTypes.indexOf(worked) >= 0;
+    var work = invOn && F.inv === 'Yes' ? [].map.call(document.querySelectorAll('#fWork .wk'), function (w) { return { md: Number(w.querySelector('.wMd').value), note: w.querySelector('.wNote').value.trim() }; }).filter(function (w) { return w.note; }) : [];
+    return { member: m ? m.id : '', date: $('fDate').value, type: F.type, half: leave ? F.half : '', workedAs: leave && F.half ? worked : '', acts: acts, invoiceable: invOn ? F.inv : '', work: work, challenge: $('fChal').value.trim() };
+  }
+  $('fSave').onclick = function () {
+    var d = fillDay();
+    if (!d.member) return msg('fMsg', 'err', 'Choose a team member.');
+    if (!d.date) return msg('fMsg', 'err', 'Choose a date.');
+    var inv = S.cfg.invoiceTypes.indexOf(d.workedAs || d.type) >= 0 && !(S.cfg.offTypes.indexOf(d.type) >= 0 && !d.half);
+    if (inv && !d.invoiceable) return msg('fMsg', 'err', 'Choose Invoiceable or Non-invoiceable.');
+    if (d.invoiceable === 'Yes' && !d.work.length) return msg('fMsg', 'err', 'Add the man-days with a short client / work note.');
+    $('fSave').disabled = true; msg('fMsg', 'info', 'Saving…');
+    call('edImport', { args: { days: [d], fix: true } }).then(function (r) {
+      $('fSave').disabled = false;
+      var x = r.results[0], nm = esc(x.member), dt = esc(prettyDate(d.date));
+      if (x.status === 'saved') { msg('fMsg', 'ok', 'Saved <b>' + nm + '</b> · ' + dt + ' · ' + fmtN(x.hours) + ' h' + (x.manDays ? ' · ' + fmtN(x.manDays) + ' invoiceable man-days' : '') + '.'); checkDay(); }
+      else if (x.status === 'exists') msg('fMsg', 'warn', nm + ' has already filled in ' + dt + ' themselves, so nothing was changed.');
+      else msg('fMsg', 'err', 'Please fix: ' + x.errors.map(esc).join('; '));
+    }).catch(function (x) { $('fSave').disabled = false; msg('fMsg', 'err', esc(x.message)); });
+  };
+  $('fClear').onclick = function () { $('fActs').innerHTML = ''; $('fWork').innerHTML = ''; $('fChal').value = ''; $('fFull').checked = false; addAct(); addWork(); msg('fMsg'); fillLayout(); };
+
+  // ---------------- bulk upload ----------------
+  var COLS = ['Member email', 'Date', 'Day type', 'Half day', 'Worked as', 'Start time', 'End time', 'Activity', 'Invoiceable', 'Man-days', 'Client / work note', 'Challenge'];
+  var UP = { days: [], results: [] };
+  $('tplBtn').onclick = function () {
+    lib('xlsx').then(function () {
+      var X = window.XLSX, wb = X.utils.book_new(), y = S.today;
+      var ex = [COLS,
+        ['priya@company.com', y, 'Office', '', '', '09:00', '11:00', 'UT report for heat exchanger', 'Yes', 0.5, 'Tata Projects – UT report', ''],
+        ['priya@company.com', y, 'Office', '', '', '11:00', '13:00', 'Training batch preparation', 'No', '', '', 'Waiting for client drawings'],
+        ['rahul@company.com', y, 'Site', '', '', '', '', 'Plant inspection at Chakan (full day)', 'Yes', 1, 'Bharat Forge – PAUT', ''],
+        ['sneha@company.com', y, 'Leave', 'First half', 'Office', '14:00', '18:00', 'Invoice processing', 'No', '', '', ''],
+        ['imran@company.com', y, 'Leave', '', '', '', '', '', '', '', '', '']];
+      var ws = X.utils.aoa_to_sheet(ex); ws['!cols'] = [26, 12, 11, 11, 11, 10, 10, 40, 12, 10, 32, 30].map(function (w) { return { wch: w }; });
+      X.utils.book_append_sheet(wb, ws, 'Timesheet');
+      var ins = [['How to fill the Timesheet sheet'], [''],
+        ['One row per activity. A day with three activities has three rows with the same email and date.'],
+        ['Keep the headers in row 1 exactly as they are. No merged cells, no totals, no blank rows in between.'], [''],
+        ['Column', 'What to put'],
+        ['Member email', 'Must match the email in the Team tab (the Member ID, e.g. QI-004, also works).'],
+        ['Date', 'YYYY-MM-DD, e.g. 2026-11-24. Today or earlier.'],
+        ['Day type', S.cfg.dayTypes.join(', ')],
+        ['Half day', 'Only with Leave or Comp Off: First half or Second half. Leave empty for a full day.'],
+        ['Worked as', 'Only with a half day: what the other half was (Office, Site, WFH, Travel). Empty = Office.'],
+        ['Start time / End time', '24-hour HH:MM, e.g. 09:00 and 13:30. Times round to 30 minutes. Past midnight is fine (23:00 to 02:00).'],
+        ['', 'A full Site or Travel day may leave both times empty. A full day of Leave or Comp Off has no activity rows other than one row with the day type.'],
+        ['Activity', 'Short description. Marathi, Hindi or English.'],
+        ['Invoiceable', 'Yes or No, for Office, WFH, Site and Travel days.'],
+        ['Man-days', 'Only when Invoiceable is Yes: ' + S.cfg.manDays.join(', ') + '. Put each invoiceable entry on its own row.'],
+        ['Client / work note', 'Client name first, then a short note, e.g. "Tata Projects – UT report".'],
+        ['Challenge', 'Optional, once per day on any one of that day\'s rows.'], [''],
+        ['Days that are already filled in (by the member or earlier) are skipped, never overwritten.'],
+        ['Lunch (13:00–13:30) is taken out of the hours automatically.']];
+      var wi = X.utils.aoa_to_sheet(ins); wi['!cols'] = [{ wch: 24 }, { wch: 110 }];
+      X.utils.book_append_sheet(wb, wi, 'Instructions');
+      X.writeFile(wb, 'QInsight timesheet upload template.xlsx');
+    }).catch(function (x) { msg('upMsg', 'err', esc(x.message)); });
+  };
+  function cellDate(v) {
+    if (v instanceof Date) { var t = new Date(v.getTime() - v.getTimezoneOffset() * 60000); return t.toISOString().slice(0, 10); }
+    if (typeof v === 'number') { var d = new Date(Math.round((v - 25569) * 86400e3)); return d.toISOString().slice(0, 10); }
+    var s = String(v || '').trim(), m;
+    if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/))) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+    if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/))) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);   // DD-MM-YYYY
+    return s;
+  }
+  function cellTime(v) {
+    if (v === '' || v == null) return '';
+    if (v instanceof Date) return ('0' + v.getHours()).slice(-2) + ':' + ('0' + v.getMinutes()).slice(-2);
+    if (typeof v === 'number') { var mins = Math.round((v % 1) * 1440); return ('0' + Math.floor(mins / 60) % 24).slice(-2) + ':' + ('0' + mins % 60).slice(-2); }
+    var s = String(v).trim().toLowerCase(), m = s.match(/^(\d{1,2})[:.](\d{2})(?::\d{2})?\s*(am|pm)?$/);
+    if (!m) return s;
+    var h = +m[1]; if (m[3] === 'pm' && h < 12) h += 12; if (m[3] === 'am' && h === 12) h = 0;
+    return ('0' + h).slice(-2) + ':' + m[2];
+  }
+  $('upFile').onchange = function () {
+    var f = this.files[0]; this.value = ''; if (!f) return;
+    msg('upMsg', 'info', 'Reading <b>' + esc(f.name) + '</b>…'); $('upPreview').innerHTML = '';
+    Promise.all([lib('xlsx'), f.arrayBuffer()]).then(function (res) {
+      var X = window.XLSX, wb = X.read(res[1], { type: 'array', cellDates: true });
+      var name = wb.SheetNames.indexOf('Timesheet') >= 0 ? 'Timesheet' : wb.SheetNames[0];
+      var rows = X.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' });
+      if (!rows.length) throw new Error('The file is empty.');
+      var norm = function (s) { return String(s || '').toLowerCase().replace(/[^a-z]/g, ''); };
+      var head = rows[0].map(norm), at = {};
+      var alias = { memberemail: ['memberemail', 'email', 'member', 'memberid', 'emailid'], date: ['date'], daytype: ['daytype', 'type'], halfday: ['halfday', 'half'],
+        workedas: ['workedas'], starttime: ['starttime', 'start', 'from'], endtime: ['endtime', 'end', 'to'], activity: ['activity', 'activities', 'description', 'work'],
+        invoiceable: ['invoiceable'], mandays: ['mandays', 'manday', 'md'], clientworknote: ['clientworknote', 'client', 'clientjob', 'note', 'clientnote'], challenge: ['challenge', 'challenges', 'bottleneck'] };
+      Object.keys(alias).forEach(function (k) { for (var i = 0; i < head.length; i++) if (alias[k].indexOf(head[i]) >= 0) { at[k] = i; break; } });
+      var missing = ['memberemail', 'date', 'daytype'].filter(function (k) { return at[k] == null; });
+      if (missing.length) throw new Error('These columns were not found in row 1: ' + missing.map(function (k) { return COLS[Object.keys(alias).indexOf(k)]; }).join(', ') + '. Use the template headers.');
+      var g = function (r, k) { return at[k] == null ? '' : r[at[k]]; };
+      var days = {}, order = [], blank = 0;
+      rows.slice(1).forEach(function (r, i) {
+        if (!r.some(function (c) { return String(c).trim() !== ''; })) { blank++; return; }
+        var em = String(g(r, 'memberemail')).trim(), dt = cellDate(g(r, 'date')), k = em.toLowerCase() + '|' + dt;
+        if (!days[k]) { days[k] = { member: em, date: dt, type: String(g(r, 'daytype')).trim(), half: String(g(r, 'halfday')).trim(), workedAs: String(g(r, 'workedas')).trim(), acts: [], work: [], invoiceable: '', challenge: '', rows: [] }; order.push(k); }
+        var d = days[k]; d.rows.push(i + 2);
+        var st = cellTime(g(r, 'starttime')), en = cellTime(g(r, 'endtime')), tx = String(g(r, 'activity')).trim();
+        if (st || en || tx) d.acts.push({ start: st, end: en, text: tx });
+        var inv = String(g(r, 'invoiceable')).trim(); if (/^y/i.test(inv)) d.invoiceable = 'Yes'; else if (/^n/i.test(inv) && d.invoiceable !== 'Yes') d.invoiceable = 'No';
+        var md = String(g(r, 'mandays')).trim(), note = String(g(r, 'clientworknote')).trim();
+        if (md || note) d.work.push({ md: md === '' ? '' : Number(md), note: note });
+        var ch = String(g(r, 'challenge')).trim(); if (ch && d.challenge.indexOf(ch) < 0) d.challenge += (d.challenge ? '\n' : '') + ch;
+      });
+      UP.days = order.map(function (k, i) { var d = days[k]; d.i = i; return d; });
+      if (!UP.days.length) throw new Error('No data rows found under the headers.');
+      msg('upMsg', 'info', 'Checking ' + UP.days.length + ' day(s) from ' + (rows.length - 1 - blank) + ' row(s)…');
+      return runChunks(true);
+    }).then(function () { renderPreview(false); }).catch(function (x) { show('upProg', false); msg('upMsg', 'err', esc(x.message)); });
+  };
+  function runChunks(dry) {
+    var n = S.cfg.importMax || 25, chunks = [];
+    for (var i = 0; i < UP.days.length; i += n) chunks.push(UP.days.slice(i, i + n));
+    var todo = dry ? chunks : chunks.map(function (c) { return c.filter(function (d) { return UP.results[d.i] && UP.results[d.i].status === 'new'; }); }).filter(function (c) { return c.length; });
+    var done = 0; show('upProg', true); $('upProg').firstChild.style.width = '0';
+    var step = function (k) {
+      if (k >= todo.length) { show('upProg', false); return Promise.resolve(); }
+      var payload = todo[k].map(function (d) { var c = Object.assign({}, d); delete c.rows; return c; });
+      return call('edImport', { args: { days: payload, dry: dry } }).then(function (r) {
+        r.results.forEach(function (x) { UP.results[x.i] = x; });
+        done++; $('upProg').firstChild.style.width = Math.round(done / todo.length * 100) + '%';
+        if (!dry) renderPreview(true);
+        return step(k + 1);
+      });
+    };
+    if (dry) UP.results = [];
+    return step(0);
+  }
+  function renderPreview(after) {
+    var c = { new: 0, exists: 0, error: 0, saved: 0 };
+    UP.days.forEach(function (d) { var r = UP.results[d.i]; if (r) c[r.status] = (c[r.status] || 0) + 1; });
+    var label = { new: 'New', exists: 'Already filled – skipped', error: 'Needs fixing', saved: 'Saved', update: 'New' };
+    var rows = UP.days.map(function (d) {
+      var r = UP.results[d.i] || {}, st = r.status || '';
+      return '<tr><td class="n">' + d.rows.join(', ') + '</td><td>' + esc(r.member || d.member) + '</td><td>' + esc(d.date) + '</td><td>' + esc(d.type) + (d.half ? ' · ' + esc(d.half) : '') + '</td><td class="n">' + d.acts.length + '</td>' +
+        '<td><span class="chip ' + (st === 'update' ? 'new' : st) + '">' + (label[st] || '…') + '</span>' + (r.errors ? '<div class="small" style="color:#8a2d23">' + r.errors.map(esc).join('<br>') + '</div>' : '') +
+        (st === 'saved' ? ' <span class="small muted">' + fmtN(r.hours) + ' h</span>' : '') + '</td></tr>';
+    }).join('');
+    var head = after
+      ? '<div class="msg ok"><b>' + c.saved + ' day(s) saved.</b> ' + (c.exists ? c.exists + ' skipped (already filled). ' : '') + (c.error ? c.error + ' need fixing and were not saved.' : '') + '</div>'
+      : '<div class="msg ' + (c.error ? 'warn' : 'ok') + '"><b>' + c.new + ' new day(s) ready to save.</b> ' + (c.exists ? c.exists + ' already filled in and will be skipped. ' : '') + (c.error ? c.error + ' need fixing — correct them in the file and upload again, or save the rest now.' : '') + '</div>' +
+        (c.new ? '<button class="btn pri" id="upGo">Save ' + c.new + ' new day(s)</button> ' : '') + '<button class="btn" id="upCsv">Download this check as CSV</button>';
+    $('upPreview').innerHTML = head + '<div class="tbl" style="margin-top:8px"><table><thead><tr><th class="n">Rows</th><th>Member</th><th>Date</th><th>Day type</th><th class="n">Activities</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    msg('upMsg');
+    if ($('upGo')) $('upGo').onclick = function () {
+      this.disabled = true;
+      runChunks(false).then(function () { renderPreview(true); }).catch(function (x) { show('upProg', false); msg('upMsg', 'err', esc(x.message) + ' Days saved so far are kept; upload the same file again to continue (saved days will be skipped).'); renderPreview(true); });
+    };
+    if ($('upCsv')) $('upCsv').onclick = function () {
+      var lines = [['Rows', 'Member', 'Date', 'Day type', 'Status', 'Problems'].join(',')].concat(UP.days.map(function (d) {
+        var r = UP.results[d.i] || {};
+        return [d.rows.join(' '), r.member || d.member, d.date, d.type, label[r.status] || '', (r.errors || []).join('; ')].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+      }));
+      saveBlob(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' }), 'upload check.csv');
+    };
+  }
+
+  // ---------------- reports ----------------
+  var R = { mode: 'month' };
+  function initReports() {
+    var y = +S.today.slice(0, 4), mo = +S.today.slice(5, 7), opts = [];
+    for (var i = 0; i < 24; i++) { var mm = mo - i, yy = y; while (mm < 1) { mm += 12; yy--; } var v = yy + '-' + ('0' + mm).slice(-2); opts.push('<option value="' + v + '">' + MON[mm - 1] + ' ' + yy + '</option>'); }
+    $('rMonth').innerHTML = opts.join('');
+    $('rFrom').value = S.today.slice(0, 8) + '01'; $('rTo').value = S.today; $('rDay').value = S.today;
+    ['rFrom', 'rTo', 'rDay'].forEach(function (id) { $(id).max = S.today; });
+    $('rType').innerHTML = '<option value="">All</option>' + S.cfg.dayTypes.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('');
+  }
+  function rMembers() {
+    var d = $('rDept').value, cur = $('rMember').value;
+    var list = S.team.filter(function (m) { return !d || m.dept === d; }).sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+    $('rMember').innerHTML = '<option value="">All</option>' + list.map(function (m) { return '<option value="' + esc(m.id) + '">' + esc(m.name) + '</option>'; }).join('');
+    if (list.some(function (m) { return m.id === cur; })) $('rMember').value = cur;
+  }
+  $('rDept').onchange = rMembers;
+  segPick($('rMode'), function (v) { R.mode = v; show('rMonthBox', v === 'month'); show('rRangeBox', v === 'range'); show('rDayBox', v === 'day'); });
+  $('rRun').onclick = function () {
+    var f = { dept: $('rDept').value, member: $('rMember').value, type: $('rType').value, inv: $('rInv').value, client: $('rClient').value.trim() };
+    if (R.mode === 'month') f.month = $('rMonth').value; else if (R.mode === 'range') { f.from = $('rFrom').value; f.to = $('rTo').value; } else f.date = $('rDay').value;
+    $('rRun').disabled = true; msg('rMsg', 'info', 'Building the report…');
+    call('edReport', { args: f }).then(function (r) {
+      $('rRun').disabled = false; msg('rMsg'); S.report = r; $('rXlsx').disabled = $('rDocx').disabled = false; renderReport(r);
+    }).catch(function (x) { $('rRun').disabled = false; msg('rMsg', 'err', esc(x.message)); });
+  };
+  function filterLine(r) {
+    var f = r.filters, parts = ['Department: ' + f.dept, 'Team member: ' + f.member, 'Day type: ' + f.type, 'Invoiceable: ' + f.inv];
+    if (f.client) parts.push('Client / job contains: "' + f.client + '"');
+    return parts.join(' · ');
+  }
+  function kpiList(r) {
+    var t = r.totals, invShare = t.worked ? Math.round(t.invDays / t.worked * 100) : 0;
+    return [
+      ['Team members included', t.people], ['Working days in period', r.period.workingDays],
+      ['Days worked', fmtN(t.worked)], ['Leave days', fmtN(t.leave)], ['Comp-off days', fmtN(t.comp)], ['Working days not logged', fmtN(t.notLogged)],
+      ['Hours logged', fmtN(t.hours)], ['Invoiceable man-days', fmtN(t.md)], ['Invoiceable share of days worked', invShare + '%'],
+      ['Night-shift hours', fmtN(t.night)], ['Challenges recorded', t.challenges]
+    ];
+  }
+  function table(head, rows, numCols, totRow) {
+    numCols = numCols || [];
+    var th = head.map(function (h, i) { return '<th' + (numCols.indexOf(i) >= 0 ? ' class="n"' : '') + '>' + esc(h) + '</th>'; }).join('');
+    var tr = function (r, cls) { return '<tr' + (cls ? ' class="' + cls + '"' : '') + '>' + r.map(function (v, i) { return '<td' + (numCols.indexOf(i) >= 0 ? ' class="n"' : '') + '>' + esc(v) + '</td>'; }).join('') + '</tr>'; };
+    return '<div class="tbl"><table><thead><tr>' + th + '</tr></thead><tbody>' + rows.map(function (r) { return tr(r); }).join('') + (totRow ? tr(totRow, 'tot') : '') + '</tbody></table></div>';
+  }
+  var PERSON_HEAD = ['Name', 'Department', 'Days worked', 'Office', 'WFH', 'Site', 'Travel', 'Leave', 'Comp off', 'Not logged', 'Invoiceable days', 'Non-invoiceable days', 'Invoiceable man-days', 'Hours', 'Avg hours / day worked', 'Night hours', 'Challenges'];
+  function personRow(p) { return [p.name, p.dept, fmtN(p.worked), fmtN(p.Office), fmtN(p.WFH), fmtN(p.Site), fmtN(p.Travel), fmtN(p.leave), fmtN(p.comp), fmtN(p.notLogged), fmtN(p.invDays), fmtN(p.nonInvDays), fmtN(p.md), fmtN(p.hours), p.avgHours || '', fmtN(p.night), p.challenges]; }
+  function personTot(t) { return ['Total', '', fmtN(t.worked), fmtN(t.Office), fmtN(t.WFH), fmtN(t.Site), fmtN(t.Travel), fmtN(t.leave), fmtN(t.comp), fmtN(t.notLogged), fmtN(t.invDays), fmtN(t.nonInvDays), fmtN(t.md), fmtN(t.hours), t.worked ? Math.round(t.hours / t.worked * 10) / 10 : '', fmtN(t.night), t.challenges]; }
+  function renderReport(r) {
+    var h = '<div class="card"><h2>' + esc(r.company) + ' · Timesheet report</h2><div class="sub" style="margin:0">' + esc(r.period.label) + (r.period.upTo !== r.period.to ? ' (data up to ' + esc(prettyDate(r.period.upTo)) + ')' : '') + '<br>' + esc(filterLine(r)) + '</div>' +
+      '<div class="kpis">' + kpiList(r).map(function (k) { return '<div class="kpi"><b>' + esc(k[1]) + '</b><span>' + esc(k[0]) + '</span></div>'; }).join('') + '</div></div>';
+    h += '<div class="card"><h3 style="margin-top:0">By team member</h3>' + table(PERSON_HEAD, r.people.map(personRow), [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], personTot(r.totals)) + '</div>';
+    h += '<div class="card"><h3 style="margin-top:0">By department</h3>' + table(['Department', 'People', 'Days worked', 'Leave', 'Comp off', 'Not logged', 'Hours', 'Invoiceable days', 'Invoiceable man-days'],
+      r.depts.map(function (d) { return [d.dept, d.people, fmtN(d.worked), fmtN(d.leave), fmtN(d.comp), fmtN(d.notLogged), fmtN(d.hours), fmtN(d.invDays), fmtN(d.md)]; }), [1, 2, 3, 4, 5, 6, 7, 8]) + '</div>';
+    h += '<div class="card"><h3 style="margin-top:0">Invoiceable man-days by client</h3>' + (r.clients.length ? table(['Client (first part of the note)', 'Man-days', 'People'], r.clients.map(function (c) { return [c.name, fmtN(c.md), c.people]; }), [1, 2], ['Total', fmtN(r.totals.md), '']) : '<p class="muted">No invoiceable man-days in this selection.</p>') + '</div>';
+    if (r.daily.length > 1) h += '<div class="card"><h3 style="margin-top:0">Hours logged per day</h3><canvas id="rChart" width="1000" height="300"></canvas></div>';
+    h += '<div class="card"><h3 style="margin-top:0">Challenges, bottlenecks and dependencies recorded</h3>' + (r.challenges.length ? table(['Date', 'Name', 'Department', 'As entered', 'English'], r.challenges.map(function (c) { return [prettyDate(c.date), c.name, c.dept, c.text, c.english || '']; })) : '<p class="muted">None recorded in this selection.</p>') + '</div>';
+    h += '<div class="card"><h3 style="margin-top:0">Day-by-day detail <span class="small muted">(' + r.detail.length + ' row(s)' + (r.detail.length > 300 ? ', first 300 shown — download Excel for all' : '') + ')</span></h3>' +
+      table(r.detailHead, r.detail.slice(0, 300).map(function (x) { return x.map(function (v, i) { return i === 0 ? prettyDate(v) : v; }); }), [6, 9, 10]) + '</div>';
+    $('rOut').innerHTML = h;
+    if ($('rChart')) drawLine($('rChart'), r.daily.map(function (d) { return d.date.slice(8) + ' ' + MON[+d.date.slice(5, 7) - 1]; }), r.daily.map(function (d) { return d.hours; }), 'Hours');
+  }
+
+  // simple canvas charts (also used as pictures in the Word report)
+  function drawBars(cv, labels, values, unit) {
+    var c = cv.getContext('2d'), W = cv.width, Hh = cv.height, padL = 220, padR = 70, top = 16, n = labels.length, bh = Math.min(34, (Hh - top * 2) / Math.max(n, 1) - 8);
+    c.fillStyle = '#fff'; c.fillRect(0, 0, W, Hh);
+    var max = Math.max.apply(null, values.concat([1]));
+    c.font = '20px Calibri, Carlito, Arial'; c.textBaseline = 'middle';
+    labels.forEach(function (l, i) {
+      var y = top + i * (bh + 8), w = (W - padL - padR) * values[i] / max;
+      c.fillStyle = '#2c3e50'; c.textAlign = 'right'; c.fillText(l.length > 26 ? l.slice(0, 25) + '…' : l, padL - 10, y + bh / 2);
+      c.fillStyle = i % 2 ? '#156082' : '#0e2841'; c.fillRect(padL, y, Math.max(w, 2), bh);
+      c.fillStyle = '#2c3e50'; c.textAlign = 'left'; c.fillText(fmtN(values[i]) + (unit ? ' ' + unit : ''), padL + w + 8, y + bh / 2);
+    });
+  }
+  function drawLine(cv, labels, values, unit) {
+    var c = cv.getContext('2d'), W = cv.width, Hh = cv.height, pl = 60, pr = 44, pt = 20, pb = 50;
+    c.fillStyle = '#fff'; c.fillRect(0, 0, W, Hh);
+    var max = Math.max.apply(null, values.concat([1])), step = Math.pow(10, Math.floor(Math.log10(max))); max = Math.ceil(max / step) * step;
+    c.strokeStyle = '#dde3ea'; c.fillStyle = '#5a6a7a'; c.font = '18px Calibri, Carlito, Arial'; c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (var g = 0; g <= 4; g++) { var y = pt + (Hh - pt - pb) * (1 - g / 4); c.beginPath(); c.moveTo(pl, y); c.lineTo(W - pr, y); c.stroke(); c.fillText(fmtN(max * g / 4), pl - 8, y); }
+    var x = function (i) { return pl + (W - pl - pr) * (labels.length < 2 ? 0.5 : i / (labels.length - 1)); }, yv = function (v) { return pt + (Hh - pt - pb) * (1 - v / max); };
+    c.strokeStyle = '#156082'; c.lineWidth = 3; c.beginPath(); values.forEach(function (v, i) { if (i) c.lineTo(x(i), yv(v)); else c.moveTo(x(i), yv(v)); }); c.stroke();
+    c.fillStyle = '#e97132'; values.forEach(function (v, i) { c.beginPath(); c.arc(x(i), yv(v), 4, 0, 7); c.fill(); });
+    c.fillStyle = '#5a6a7a'; c.textAlign = 'center'; c.textBaseline = 'top';
+    var every = Math.ceil(labels.length / 12); labels.forEach(function (l, i) { if (i % every === 0 || i === labels.length - 1) { c.textAlign = i === labels.length - 1 && labels.length > 1 ? 'right' : i === 0 && labels.length > 1 ? 'left' : 'center'; c.fillText(l, x(i) + (c.textAlign === 'right' ? 6 : c.textAlign === 'left' ? -6 : 0), Hh - pb + 10); } });
+  }
+
+  // Excel download
+  $('rXlsx').onclick = function () {
+    var r = S.report; if (!r) return;
+    lib('xlsx').then(function () {
+      var X = window.XLSX, wb = X.utils.book_new();
+      var add = function (name, aoa, widths) { var ws = X.utils.aoa_to_sheet(aoa); if (widths) ws['!cols'] = widths.map(function (w) { return { wch: w }; }); X.utils.book_append_sheet(wb, ws, name); };
+      add('Summary', [[r.company + ' · Timesheet report'], ['Period', r.period.label], ['Filters', filterLine(r)], ['Generated', r.generated + ' by ' + S.email], []].concat(kpiList(r)), [34, 80]);
+      add('By person', [PERSON_HEAD].concat(r.people.map(function (p) { return personRow(p).map(function (v, i) { return i >= 2 ? Number(v) || 0 : v; }); })).concat([personTot(r.totals).map(function (v, i) { return i >= 2 ? Number(v) || 0 : v; })]), [24, 18].concat(new Array(15).fill(11)));
+      add('By department', [['Department', 'People', 'Days worked', 'Leave', 'Comp off', 'Not logged', 'Hours', 'Invoiceable days', 'Invoiceable man-days']].concat(r.depts.map(function (d) { return [d.dept, d.people, d.worked, d.leave, d.comp, d.notLogged, d.hours, d.invDays, d.md]; })), [22, 9, 12, 9, 10, 11, 10, 15, 18]);
+      add('By client', [['Client (first part of the note)', 'Man-days', 'People']].concat(r.clients.map(function (c) { return [c.name, c.md, c.people]; })), [40, 12, 10]);
+      add('Per day', [['Date', 'Hours logged', 'Invoiceable man-days', 'Entries']].concat(r.daily.map(function (d) { return [d.date, d.hours, d.md, d.people]; })), [12, 14, 20, 10]);
+      add('Challenges', [['Date', 'Name', 'Department', 'As entered', 'English']].concat(r.challenges.map(function (c) { return [c.date, c.name, c.dept, c.text, c.english || '']; })), [12, 22, 18, 60, 60]);
+      add('Day by day', [r.detailHead].concat(r.detail), [11, 10, 22, 16, 18, 11, 9, 36, 12, 7, 9, 50, 50, 26]);
+      X.writeFile(wb, 'Timesheet report ' + r.period.from + (r.period.to !== r.period.from ? ' to ' + r.period.to : '') + '.xlsx');
+    }).catch(function (x) { msg('rMsg', 'err', esc(x.message)); });
+  };
+
+  // Word (management) report — neutral wording: numbers, definitions and entries as recorded; no conclusions or recommendations
+  $('rDocx').onclick = function () {
+    var r = S.report; if (!r) return;
+    $('rDocx').disabled = true; msg('rMsg', 'info', 'Preparing the Word report…');
+    lib('docx').then(function () { return buildDocx(r); }).then(function (blob) {
+      $('rDocx').disabled = false; msg('rMsg');
+      saveBlob(blob, 'Timesheet report ' + r.period.from + (r.period.to !== r.period.from ? ' to ' + r.period.to : '') + '.docx');
+    }).catch(function (x) { $('rDocx').disabled = false; msg('rMsg', 'err', esc(x.message)); });
+  };
+  function chartPng(kind, labels, values, w, h) {
+    var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    (kind === 'bar' ? drawBars : drawLine)(cv, labels, values);
+    var b64 = cv.toDataURL('image/png').split(',')[1], bin = atob(b64), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return u;
+  }
+  function buildDocx(r) {
+    var D = window.docx, NAVY = '0E2841', LINE = 'DDE3EA', FONT = 'Calibri';
+    var P = function (text, o) { o = o || {}; return new D.Paragraph({ spacing: { after: o.after == null ? 120 : o.after, before: o.before || 0 }, alignment: o.align, children: [new D.TextRun({ text: String(text), bold: o.bold, size: o.size || 21, color: o.color, font: FONT, italics: o.italic })] }); };
+    var Hd = function (text, lvl) { return new D.Paragraph({ heading: lvl === 2 ? D.HeadingLevel.HEADING_2 : D.HeadingLevel.HEADING_1, spacing: { before: lvl === 2 ? 200 : 320, after: 120 }, children: [new D.TextRun({ text: text, font: FONT, color: NAVY, bold: true, size: lvl === 2 ? 24 : 28 })] }); };
+    var cell = function (v, o) { o = o || {}; return new D.TableCell({ shading: o.head ? { fill: NAVY, type: D.ShadingType.CLEAR, color: 'auto' } : o.tot ? { fill: 'EEF3F7', type: D.ShadingType.CLEAR, color: 'auto' } : undefined,
+      margins: { top: 50, bottom: 50, left: 80, right: 80 },
+      children: [new D.Paragraph({ alignment: o.num ? D.AlignmentType.RIGHT : D.AlignmentType.LEFT, children: [new D.TextRun({ text: String(v == null ? '' : v), font: FONT, size: o.small ? 16 : 18, bold: o.head || o.tot, color: o.head ? 'FFFFFF' : '2C3E50' })] })] }); };
+    var tbl = function (head, rows, nums, tot, small) {
+      nums = nums || [];
+      var mk = function (r, o) { return new D.TableRow({ tableHeader: !!o.head, children: r.map(function (v, i) { return cell(v, { head: o.head, tot: o.tot, num: nums.indexOf(i) >= 0, small: small }); }) }); };
+      var b = { style: D.BorderStyle.SINGLE, size: 4, color: LINE };
+      return new D.Table({ width: { size: 100, type: D.WidthType.PERCENTAGE }, borders: { top: b, bottom: b, left: b, right: b, insideHorizontal: b, insideVertical: b },
+        rows: [mk(head, { head: true })].concat(rows.map(function (x) { return mk(x, {}); })).concat(tot ? [mk(tot, { tot: true })] : []) });
+    };
+    var img = function (u, w, h) { return new D.Paragraph({ spacing: { before: 120, after: 160 }, children: [new D.ImageRun({ data: u, transformation: { width: w, height: h } })] }); };
+    var t = r.totals, kids = [];
+    kids.push(P(r.company, { bold: true, color: 'E97132', size: 22, after: 40 }));
+    kids.push(new D.Paragraph({ spacing: { after: 80 }, children: [new D.TextRun({ text: 'Timesheet report', font: FONT, bold: true, size: 44, color: NAVY })] }));
+    kids.push(P(r.period.label + (r.period.upTo !== r.period.to ? ' (data up to ' + prettyDate(r.period.upTo) + ')' : ''), { size: 24, after: 60 }));
+    kids.push(P(filterLine(r), { size: 19, color: '5A6A7A', after: 60 }));
+    kids.push(P('Prepared on ' + r.generated + ' from the QInsight Daily Log. Figures are as recorded by team members and editors.', { size: 18, color: '5A6A7A', italic: true, after: 200 }));
+    kids.push(Hd('1. Overview'));
+    kids.push(tbl(['Measure', 'Value'], kpiList(r).map(function (k) { return [k[0], k[1]]; }), [1]));
+    var types = ['Office', 'WFH', 'Site', 'Travel'].filter(function (k) { return t[k]; });
+    kids.push(Hd('2. Days worked by type'));
+    kids.push(tbl(['Day type', 'Days', 'Share of days worked'], types.map(function (k) { return [k, fmtN(t[k]), t.worked ? Math.round(t[k] / t.worked * 100) + '%' : '']; }).concat([['Leave', fmtN(t.leave), ''], ['Comp off', fmtN(t.comp), '']]), [1, 2], ['Days worked', fmtN(t.worked), '']));
+    if (types.length) kids.push(img(chartPng('bar', types, types.map(function (k) { return t[k]; }), 1100, 60 + types.length * 46), 600, Math.round((60 + types.length * 46) * 600 / 1100)));
+    kids.push(Hd('3. Invoiceable man-days by client'));
+    if (r.clients.length) {
+      kids.push(tbl(['Client (first part of the note)', 'Man-days', 'People'], r.clients.map(function (c) { return [c.name, fmtN(c.md), c.people]; }), [1, 2], ['Total', fmtN(t.md), '']));
+      var top = r.clients.slice(0, 12);
+      kids.push(img(chartPng('bar', top.map(function (c) { return c.name; }), top.map(function (c) { return c.md; }), 1100, 60 + top.length * 46), 600, Math.round((60 + top.length * 46) * 600 / 1100)));
+      if (r.clients.length > 12) kids.push(P('The chart shows the 12 largest values; the table lists all clients.', { size: 17, color: '5A6A7A', italic: true }));
+    } else kids.push(P('No invoiceable man-days were recorded in this selection.'));
+    kids.push(Hd('4. By department'));
+    kids.push(tbl(['Department', 'People', 'Days worked', 'Leave', 'Comp off', 'Not logged', 'Hours', 'Invoiceable man-days'], r.depts.map(function (d) { return [d.dept, d.people, fmtN(d.worked), fmtN(d.leave), fmtN(d.comp), fmtN(d.notLogged), fmtN(d.hours), fmtN(d.md)]; }), [1, 2, 3, 4, 5, 6, 7]));
+    kids.push(Hd('5. By team member'));
+    kids.push(P('Listed by department, then name.', { size: 17, color: '5A6A7A', italic: true }));
+    kids.push(tbl(['Name', 'Department', 'Days worked', 'Leave', 'Comp off', 'Not logged', 'Hours', 'Avg h / day', 'Inv. man-days', 'Challenges'],
+      r.people.map(function (p) { return [p.name, p.dept, fmtN(p.worked), fmtN(p.leave), fmtN(p.comp), fmtN(p.notLogged), fmtN(p.hours), p.avgHours || '', fmtN(p.md), p.challenges]; }), [2, 3, 4, 5, 6, 7, 8, 9],
+      ['Total', '', fmtN(t.worked), fmtN(t.leave), fmtN(t.comp), fmtN(t.notLogged), fmtN(t.hours), t.worked ? Math.round(t.hours / t.worked * 10) / 10 : '', fmtN(t.md), t.challenges], true));
+    if (r.daily.length > 1) {
+      kids.push(Hd('6. Hours logged per day'));
+      kids.push(img(chartPng('line', r.daily.map(function (d) { return d.date.slice(8) + ' ' + MON[+d.date.slice(5, 7) - 1]; }), r.daily.map(function (d) { return d.hours; }), 1100, 380), 600, 207));
+    }
+    kids.push(Hd((r.daily.length > 1 ? '7' : '6') + '. Challenges, bottlenecks and dependencies recorded'));
+    if (r.challenges.length) kids.push(tbl(['Date', 'Name', 'As entered', 'English'], r.challenges.map(function (c) { return [prettyDate(c.date), c.name, c.text, c.english || '']; }), [], null, true));
+    else kids.push(P('None were recorded in this selection.'));
+    kids.push(Hd('Notes on the figures', 2));
+    [
+      'Working days: Monday to Saturday, excluding holidays listed in the sheet, counted up to the end of the period or today, whichever is earlier.',
+      'Days worked: days logged as Office, WFH, Site or Travel. A half day of leave or comp off counts as 0.5 worked and 0.5 leave or comp off.',
+      'Working days not logged: working days minus days worked, leave and comp off, for each person.',
+      'Hours logged: the time blocks filled in, less the 30-minute lunch break. A full Site or Travel day counts as 9.5 hours.',
+      'Invoiceable man-days: as entered against each invoiceable entry. The client is the first part of the note, before a dash, colon or comma.',
+      'Challenges are shown as entered; the English column is an automatic translation of text written in Marathi or Hindi.'
+    ].forEach(function (s) { kids.push(new D.Paragraph({ bullet: { level: 0 }, spacing: { after: 60 }, children: [new D.TextRun({ text: s, font: FONT, size: 18, color: '2C3E50' })] })); });
+    var doc = new D.Document({
+      creator: S.email, title: 'Timesheet report ' + r.period.label, description: 'QInsight timesheet report',
+      styles: { default: { document: { run: { font: FONT, size: 21 } } } },
+      sections: [{ properties: { page: { margin: { top: 1000, bottom: 1000, left: 1000, right: 1000 } } },
+        footers: { default: new D.Footer({ children: [new D.Paragraph({ alignment: D.AlignmentType.RIGHT, children: [new D.TextRun({ text: r.company + ' · Timesheet report · ' + r.period.label + ' · page ', font: FONT, size: 16, color: '7A8A96' }), new D.TextRun({ children: [D.PageNumber.CURRENT], font: FONT, size: 16, color: '7A8A96' })] })] }) },
+        children: kids }]
+    });
+    return D.Packer.toBlob(doc);
+  }
+
+  // ---------------- boot ----------------
+  if (!API || /PASTE_/.test(API)) { show('login', true); msg('loginMsg', 'err', 'The backend address is missing in config.js.'); return; }
+  var saved = null; try { saved = JSON.parse(localStorage.getItem('qiAdmin') || 'null'); } catch (e) {}
+  if (saved && saved.s && saved.until > Date.now()) { S.session = saved.s; $('email').value = saved.e || ''; start(); }
+  else { show('login', true); if (saved && saved.e) $('email').value = saved.e; }
+})();
+</script>
+</body>
+</html>
