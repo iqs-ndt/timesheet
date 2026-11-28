@@ -1,6 +1,6 @@
 // QInsight Daily Log: offline support.
 // Bump VERSION whenever you upload changed app files, so phones pick up the new version.
-var VERSION = 'qts-v18';
+var VERSION = 'qts-v19';
 var SHELL = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './logo.png', './claims.js'];
 
 self.addEventListener('install', function (e) {
@@ -19,7 +19,7 @@ self.addEventListener('fetch', function (e) {
   var req = e.request;
   var u = new URL(req.url);
   if (req.method !== 'GET' || u.origin !== self.location.origin) return;
-  if (/(review|admin)\.html$/.test(u.pathname)) return;   // approval page and admin portal: always live, never cached
+  if (/(review|admin|compoff)\.html$/.test(u.pathname)) return;   // approval pages and admin portal: always live, never cached
   e.respondWith(caches.open(VERSION).then(function (cache) {
     return cache.match(req, { ignoreSearch: true }).then(function (hit) {
       var net = fetch(req).then(function (res) {
