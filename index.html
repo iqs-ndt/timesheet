@@ -249,6 +249,27 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
 .paste button{padding:7px;font-size:15px}
 .leave.half{padding:10px 10px}
 .foot{margin-top:12px}
+
+  /* comp-off */
+  .cocard{padding:10px 14px;margin:0 0 10px;font-size:14px;color:var(--ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-left:4px solid #6a4a8c}
+  .cocard .t{flex:1;min-width:180px}
+  .cocard small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .cobtn{background:var(--orange,#e97132);color:#fff;border:0;border-radius:8px;padding:7px 12px;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+  .cobtn.alt{background:#fff;color:var(--navy,#0e2841);border:1px solid var(--line)}
+  .cobtn:disabled{opacity:.5}
+  .copick{margin:12px auto 4px;max-width:360px;text-align:left}
+  .copick select{width:100%;font:inherit;font-size:14px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  .copick small{display:block;margin-top:4px;color:var(--muted)}
+  .copick .warn{color:#9a3b12}
+  .copick b,.leave strong{display:inline;font-size:inherit;margin:0;color:inherit}
+  .co-list{overflow:hidden}
+  .co-sec{font-weight:700;color:var(--navy,#0e2841);margin:14px 2px 6px;font-size:14px}
+  .co-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line)}
+  .co-row:first-child{border-top:0}
+  .co-row .s{flex:1;min-width:0;font-size:13px;color:var(--muted)}
+  .co-row .s b{display:block;color:var(--ink);font-size:14px}
+  .co-empty{padding:14px;color:var(--muted);font-size:13px}
+  .b-co{background:#f6f1fb;color:#6a4a8c} .b-no{background:#fdecea;color:#9a2a1c}
 </style>
 </head>
 <body>
@@ -262,7 +283,7 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
         <button class="install" id="installBtn" hidden>Install</button>
         <button class="pill" id="pill" title="Tap to sync now"><i></i><span>…</span></button>
       </div>
-      <nav class="tabs"><button data-tab="log" class="on">Log my day</button><button data-tab="hist">My history</button><button data-tab="claims" id="claimsTab" hidden>Claims</button></nav>
+      <nav class="tabs"><button data-tab="log" class="on">Log my day</button><button data-tab="hist">My history</button><button data-tab="co">Comp-off</button><button data-tab="claims" id="claimsTab" hidden>Claims</button></nav>
     </div>
   </header>
 
@@ -273,6 +294,7 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
       <button class="nav" id="next" aria-label="Next day">›</button>
     </div>
     <div id="notice" class="notice"></div>
+    <div class="card cocard" id="coCard" hidden></div>
     <button type="button" class="copyprev" id="copyPrev" hidden>⧉ Copy previous day</button>
     <div class="types" id="types"></div>
     <div class="card inv" id="inv" hidden></div>
@@ -288,6 +310,12 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
     <div class="histhead" id="histHead"></div>
     <div class="card hist" id="histList"></div>
     <p class="muted foot">Only you can see this. Tap any day to view or edit it.</p>
+  </main>
+
+  <main id="tab-co" class="wrap" hidden>
+    <div class="histhead" id="coHead"></div>
+    <div id="coBody"></div>
+    <p class="muted foot" id="coRules"></p>
   </main>
 
   <main id="tab-claims" class="wrap" hidden></main>
@@ -413,7 +441,8 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
     return api('hello').then(function (r) {
       if (S.prevProfileId && S.prevProfileId !== r.profile.id) { S.entries = {}; S.history = null; }
       delete S.prevProfileId;
-      S.profile = r.profile; S.config = r.config; persist();
+      S.profile = r.profile; S.config = r.config; if (r.compOff) S.co = r.compOff; persist();
+      if (tab === 'co') renderCo(); else if (tab === 'log' && started) renderCoCard();
       return r;
     });
   }
@@ -653,10 +682,13 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
     if (e.half) {
       h += '<div class="hw">The other half I worked:</div><div class="seg wt">' + workTypes().map(function (t) { return '<button type="button" data-wt="' + esc(t) + '"' + (effType(e) === t ? ' class="on"' : '') + '>' + esc(t) + '</button>'; }).join('') + '</div>' +
         '<small>' + (e.half === 'First' ? 'Morning off: fill in from lunch onwards.' : 'Afternoon off: fill in up to lunch.') + '</small>';
-    } else h += 'Nothing else to fill in. Just tap <b>Submit day</b>.';
+    } else h += 'Nothing else to fill in. Just tap <strong>Submit day</strong>.';
+    h += coPickHtml(e);
     var div = document.createElement('div'); div.innerHTML = h + '</div>';
     var el = div.firstChild;
-    el.querySelector('#offSel').onchange = function () { var v = this.value; touch(function (x) { x.type = v; }); renderLog(); };
+    var cs = el.querySelector('#coSel');
+    if (cs) cs.onchange = function () { var v = this.value; touch(function (x) { x.coAgainst = v; }); renderNotice(); renderBar(); };
+    el.querySelector('#offSel').onchange = function () { var v = this.value; touch(function (x) { x.type = v; }); renderLog(); if (normType(v) === 'Comp Off') coRefresh(true); };
     Array.prototype.forEach.call(el.querySelectorAll('[data-half]'), function (b) {
       b.onclick = function () { var hv = b.dataset.half; touch(function (x) { x.half = hv; if (hv && !x.workType) x.workType = 'Office'; if (hv && x.block === 'day') x.block = 120; rebucket(x); }); renderLog(); };
     });
@@ -862,24 +894,25 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
   }
 
   function renderLog() {
-    renderDate(); renderCopy(); renderTypes(); renderSlots(); refreshSameButtons();
+    renderDate(); renderCopy(); renderCoCard(); renderTypes(); renderSlots(); refreshSameButtons();
     var s = $('summary'); s.value = viewEntry().summary || ''; autosize(s);
     renderNotice(); renderBar();
   }
 
-  function renderAll() { renderHeader(); if (tab === 'log') renderLog(); else if (tab === 'hist') renderHist(); renderBar(); }
+  function renderAll() { renderHeader(); if (tab === 'log') renderLog(); else if (tab === 'hist') renderHist(); else if (tab === 'co') renderCo(); renderBar(); }
 
   // ---------- open a date ----------
   function openDate(d) {
     if (d > today()) d = today(); if (d < minDay()) d = minDay();
     cur = d; renderLog(); window.scrollTo(0, 0);
+    if (navigator.onLine && (coReason(d) || (entry(d) && normType(entry(d).type) === 'Comp Off'))) coRefresh();
     var local = entry(d);
     if (!navigator.onLine || (local && (local.state === 'draft' || local.state === 'pending'))) return;
     var asked = d;
     api('get', { date: d }).then(function (r) {
       var now = entry(asked);
       if (now && now.state !== 'synced' && now.state !== 'error') return; // user started typing meanwhile
-      if (r.entry) { var re = r.entry; S.entries[asked] = { type: normType(re.type), half: re.half || '', workType: re.workType || '', block: re.block || 120, map: re.map || {}, dayText: re.dayText || '', invoiceable: re.invoiceable || '', work: Array.isArray(re.work) ? re.work : undefined, manDays: re.manDays || '', client: re.client || '', lunch: re.lunch || LC().start, summary: re.summary, updatedAt: re.updatedAt, hours: re.hours, state: 'synced' }; }
+      if (r.entry) { var re = r.entry; S.entries[asked] = { type: normType(re.type), half: re.half || '', workType: re.workType || '', block: re.block || 120, map: re.map || {}, dayText: re.dayText || '', invoiceable: re.invoiceable || '', work: Array.isArray(re.work) ? re.work : undefined, manDays: re.manDays || '', client: re.client || '', lunch: re.lunch || LC().start, summary: re.summary, updatedAt: re.updatedAt, hours: re.hours, coAgainst: re.coAgainst || '', state: 'synced' }; }
       else if (now && now.state === 'synced') delete S.entries[asked];
       persist();
       delete openGroups['early' + asked]; delete openGroups['late' + asked]; delete openGroups['night' + asked];
@@ -906,6 +939,8 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
         return toast(bad);
       }
     }
+    if (coNeeded(e) && !coAvail(cur, e.half ? 0.5 : 1).length) return toast('No approved comp-off is available for this day. Choose Leave, or wait for your manager to approve a comp-off.');
+    if (coNeeded(e) && !e.coAgainst) { var av0 = coAvail(cur, e.half ? 0.5 : 1); e.coAgainst = av0[0].no; }
     if (entry(cur) && entry(cur).state === 'synced') return toast('Already submitted. Edit something to update it.');
     var x = S.entries[cur] || (S.entries[cur] = e);
     x.state = 'pending'; x.editedAt = Date.now(); persist();
@@ -927,8 +962,10 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
         if (stop) return;
         var e = normalize(S.entries[d]), sentEdit = e.editedAt;
         var work = e.invoiceable === 'Yes' ? (e.work || []).filter(function (x) { return Number(x.md) || String(x.note || '').trim(); }) : [];
-        return api('save', { entry: { date: d, type: e.type, half: e.half || '', workType: e.half ? effType(e) : '', block: blk(e), map: e.map, dayText: dayMode(e) ? (e.dayText || '') : '', summary: e.summary, invoiceable: e.invoiceable || '', work: work, manDays: workTotal({ work: work }) || '', client: work.map(function (x) { return x.note; }).join('; '), lunch: lunchOf(e) } }).then(function (r) {
+        return api('save', { entry: { date: d, type: e.type, half: e.half || '', workType: e.half ? effType(e) : '', block: blk(e), map: e.map, dayText: dayMode(e) ? (e.dayText || '') : '', summary: e.summary, invoiceable: e.invoiceable || '', work: work, manDays: workTotal({ work: work }) || '', client: work.map(function (x) { return x.note; }).join('; '), lunch: lunchOf(e), coAgainst: normType(e.type) === 'Comp Off' ? (e.coAgainst || '') : '' } }).then(function (r) {
           var now = S.entries[d];
+          if (r.compOff) S.co = r.compOff;
+          if (r.coUsed) { if (now) now.coAgainst = r.coUsed; toast('Comp-off settled against ' + r.coUsed + '. Your manager and HR are informed.'); }
           if (now && now.editedAt === sentEdit) { now.state = 'synced'; now.updatedAt = r.updatedAt; now.hours = r.hours; delete now.error; }
           sentOk++;
           if (r.notified) toast('Submitted. Your note was sent to your manager.');
@@ -952,7 +989,7 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
       var h = {}; r.history.forEach(function (e) { h[e.date] = e; });
       S.history = h; persist();
       // refresh local synced copies that may have been changed on another device
-      if (tab === 'hist') renderHist();
+      if (tab === 'hist') renderHist(); else if (tab === 'co') renderCo();
     }).catch(function () {});
   }
 
@@ -1009,11 +1046,117 @@ textarea{padding:6px 9px;font-size:16px;min-height:46px;border-radius:8px}
   function setTab(t) {
     tab = t;
     document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); });
-    $('tab-log').hidden = t !== 'log'; $('tab-hist').hidden = t !== 'hist'; $('tab-claims').hidden = t !== 'claims';
-    $('ttl').textContent = t === 'claims' ? 'Claims' : 'Daily log';
+    $('tab-log').hidden = t !== 'log'; $('tab-hist').hidden = t !== 'hist'; $('tab-claims').hidden = t !== 'claims'; $('tab-co').hidden = t !== 'co';
+    $('ttl').textContent = t === 'claims' ? 'Claims' : t === 'co' ? 'Comp-off' : 'Daily log';
     if (t !== 'claims' && window.QTSClaims) QTSClaims.hide();
-    if (t === 'hist') { renderHist(); loadHistory(); } else if (t === 'claims') { if (window.QTSClaims) QTSClaims.show(); else toast('Claims are loading… try again in a moment.'); } else renderLog();
+    if (t === 'hist') { renderHist(); loadHistory(); } else if (t === 'co') { renderCo(); coRefresh(true); loadHistory(); } else if (t === 'claims') { if (window.QTSClaims) QTSClaims.show(); else toast('Claims are loading… try again in a moment.'); } else renderLog();
     renderBar(); window.scrollTo(0, 0);
+  }
+
+
+  // ---------- comp-off ----------
+  function coCfg() { return cfg().compOff || { minHours: 8, expiryDays: 90, start: '2026-11-28' }; }
+  function coData() { return S.co || { items: [], balance: 0, pending: 0 }; }
+  function coReason(d) { var hol = cfg().holidays || {}; return hol[d] ? 'Holiday: ' + hol[d] : (wday(d) === 0 ? 'Sunday' : ''); }
+  function coItemFor(d) { return coData().items.filter(function (x) { return x.worked === d && x.status !== 'Withdrawn'; })[0] || null; }
+  function coNeeded(e) { return normType(e.type) === 'Comp Off' && cur >= coCfg().start; }
+  function coAvail(d, units) {
+    return coData().items.filter(function (x) {
+      var left = (x.status === 'Approved' || x.status === 'Used' ? (x.left || 0) : 0) + ((x.used || {})[d] || 0);
+      return (x.status === 'Approved' || x.status === 'Used' || ((x.used || {})[d])) && x.expires && x.expires >= d && x.worked < d && left >= units;
+    }).sort(function (a, b) { return a.expires < b.expires ? -1 : 1; });
+  }
+  function coLeftFor(x, d) { return (x.left || 0) + ((x.used || {})[d] || 0); }
+  function dayWord(n) { return n + ' day' + (n === 1 ? '' : 's'); }
+  var coBusy = false, coLast = 0;
+  function coRefresh(force) {
+    if (!navigator.onLine || (!force && Date.now() - coLast < 15000)) return Promise.resolve();
+    coLast = Date.now();
+    return api('coList').then(function (r) { S.co = r.compOff; persist(); if (tab === 'co') renderCo(); else if (tab === 'log') { renderCoCard(); if (normType(viewEntry().type) === 'Comp Off') renderSlots(); } }).catch(function () {});
+  }
+  function coPickHtml(e) {
+    if (!coNeeded(e)) return '';
+    var units = e.half ? 0.5 : 1, av = coAvail(cur, units), D = coData();
+    if (!av.length) return '<div class="copick"><small class="warn">No approved comp-off is available for this day' + (D.pending ? ' (' + D.pending + ' waiting for your manager)' : '') + '. Choose Leave instead, or wait for the approval.</small></div>';
+    if (!e.coAgainst || !av.some(function (x) { return x.no === e.coAgainst; })) e.coAgainst = av[0].no;
+    return '<div class="copick"><div class="hw">Use the comp-off earned on</div><select id="coSel" aria-label="Comp-off to use">' + av.map(function (x) {
+      return '<option value="' + esc(x.no) + '"' + (x.no === e.coAgainst ? ' selected' : '') + '>' + esc(pretty(x.worked) + ' · ' + x.reason.replace(/^Holiday: /, '') + ' · ' + coLeftFor(x, cur) + ' left · use by ' + pretty(x.expires)) + '</option>'; }).join('') +
+      '</select><small>You have <b>' + dayWord(D.balance) + '</b> of comp-off. This ' + (units === 1 ? 'full day' : 'half day') + ' is settled as soon as you submit; your manager and HR get an FYI email.</small></div>';
+  }
+  function coStatusLine(x) {
+    if (x.status === 'Pending') return 'Waiting for your manager';
+    if (x.status === 'Approved') return (x.usedDays ? 'Used ' + dayWord(x.usedDays) + ' · ' : '') + dayWord(x.left) + ' left · use by ' + pretty(x.expires, true);
+    if (x.status === 'Used') return 'Fully used' + coUsedDays(x);
+    if (x.status === 'Expired') return 'Expired on ' + pretty(x.expires, true) + (x.usedDays ? ' · used ' + dayWord(x.usedDays) : '');
+    if (x.status === 'Rejected') return 'Not approved' + (x.note ? ': ' + x.note : '');
+    return x.status;
+  }
+  function coUsedDays(x) { var u = x.used || {}, k = Object.keys(u).sort(); return k.length ? ' · on ' + k.map(function (d) { return pretty(d) + (u[d] === 0.5 ? ' (½)' : ''); }).join(', ') : ''; }
+  function coBadge(x) { var c = { Pending: 'b-wait', Approved: 'b-ok', Used: 'b-co', Expired: 'b-miss', Rejected: 'b-no', Withdrawn: 'b-miss' }[x.status] || 'b-miss'; return '<span class="badge ' + c + '">' + esc(x.status) + '</span>'; }
+  function coClaim(d) {
+    if (!navigator.onLine) return toast('You are offline. Claim the comp-off when you are connected.');
+    if (coBusy) return; coBusy = true; renderCoCard(); if (tab === 'co') renderCo();
+    api('coClaim', { date: d }).then(function (r) { S.co = r.compOff; persist(); toast('Comp-off request ' + r.no + ' sent to your manager.'); })
+      .catch(function (e) { toast(e.network ? 'Could not reach the server. Try again.' : e.message); })
+      .then(function () { coBusy = false; if (tab === 'co') renderCo(); else renderCoCard(); });
+  }
+  function coWithdraw(no) {
+    if (!navigator.onLine) return toast('You are offline. Try again when you are connected.');
+    if (!confirm('Withdraw comp-off request ' + no + '? Your manager and HR will be told.')) return;
+    coBusy = true;
+    api('coWithdraw', { no: no }).then(function (r) { S.co = r.compOff; persist(); toast('Withdrawn. You can claim it again later if you need to.'); })
+      .catch(function (e) { toast(e.network ? 'Could not reach the server. Try again.' : e.message); coRefresh(true); })
+      .then(function () { coBusy = false; if (tab === 'co') renderCo(); else renderCoCard(); });
+  }
+  function dayHours(d) {
+    var loc = entry(d), srv = (S.history || {})[d];
+    var x = loc && loc.state === 'synced' ? loc : (!loc || loc.state === 'synced' ? srv : null);
+    if (!x) return null;
+    if (isOff(x.type) && !x.half) return 0;
+    return x.hours != null ? Number(x.hours) : workMinutes(normalize(x)) / 60;
+  }
+  function renderCoCard() {
+    var el = $('coCard'); if (!el) return;
+    var d = cur, why = coReason(d), it = coItemFor(d), min = coCfg().minHours, e = entry(d);
+    if (!why || (!it && e && isOff(e.type) && !e.half)) { el.hidden = true; return; }
+    var hrs = dayHours(d), h;
+    if (it) {
+      h = '<div class="t">🔁 <b>Comp-off ' + esc(it.no) + '</b> ' + coBadge(it) + '<small>' + esc(coStatusLine(it)) + '</small></div>' +
+        (it.status === 'Pending' ? '<button type="button" class="cobtn alt" data-cow="' + esc(it.no) + '"' + (coBusy ? ' disabled' : '') + '>Withdraw</button>' : '');
+    } else if (hrs != null && hrs >= min && d >= addDays(today(), -cfg().editWindowDays)) {
+      h = '<div class="t">🔁 <b>' + esc(why) + ' · ' + (Math.round(hrs * 100) / 100) + ' h worked</b><small>This day earns 1 comp-off. Claim it and your manager gets an approval request.</small></div>' +
+        '<button type="button" class="cobtn" data-coc="' + d + '"' + (coBusy ? ' disabled' : '') + '>' + (coBusy ? 'Sending…' : 'Claim comp-off') + '</button>';
+    } else {
+      h = '<div class="t">🔁 <b>' + esc(why) + '</b><small>' + (hrs != null ? 'You logged ' + (Math.round(hrs * 100) / 100) + ' h. A comp-off needs ' + min + ' h or more on this day.' : 'Log ' + min + ' h or more and submit, then you can claim a comp-off for this day.') + '</small></div>';
+    }
+    el.innerHTML = h; el.hidden = false;
+    var b = el.querySelector('[data-coc]'); if (b) b.onclick = function () { coClaim(b.dataset.coc); };
+    var w = el.querySelector('[data-cow]'); if (w) w.onclick = function () { coWithdraw(w.dataset.cow); };
+  }
+  function renderCo() {
+    var D = coData(), min = coCfg().minHours, exp = coCfg().expiryDays;
+    var live = D.items.filter(function (x) { return x.status === 'Approved' && x.left > 0; }).sort(function (a, b) { return a.expires < b.expires ? -1 : 1; });
+    $('coHead').innerHTML = '<div class="card"><b>' + D.balance + '</b><small>comp-off days available</small></div>' +
+      '<div class="card"><b>' + D.pending + '</b><small>waiting for approval</small></div>' +
+      '<div class="card"><b>' + (live.length ? esc(pretty(live[0].expires).split(', ')[1]) : '–') + '</b><small>' + (live.length ? 'next one expires' : 'nothing expiring') + '</small></div>';
+    // days that can still be claimed
+    var claimable = [];
+    for (var k = 0; k <= cfg().editWindowDays; k++) {
+      var d = addDays(today(), -k), why = coReason(d); if (!why || coItemFor(d)) continue;
+      var hrs = dayHours(d); if (hrs != null && hrs >= min) claimable.push({ d: d, why: why, hrs: hrs });
+    }
+    var h = '';
+    if (claimable.length) h += '<div class="co-sec">Days you can claim</div><div class="card co-list">' + claimable.map(function (c) {
+      return '<div class="co-row"><div class="s"><b>' + esc(pretty(c.d, true)) + '</b>' + esc(c.why) + ' · ' + (Math.round(c.hrs * 100) / 100) + ' h worked</div><button type="button" class="cobtn" data-coc="' + c.d + '"' + (coBusy ? ' disabled' : '') + '>Claim</button></div>'; }).join('') + '</div>';
+    var shown = D.items.filter(function (x) { return x.status !== 'Withdrawn'; });
+    h += '<div class="co-sec">My comp-offs</div><div class="card co-list">' + (shown.length ? shown.map(function (x) {
+      return '<div class="co-row"><div class="s"><b>' + esc(pretty(x.worked, true)) + ' · ' + esc(x.reason.replace(/^Holiday: /, '')) + '</b>' + esc(x.no + ' · ' + coStatusLine(x)) + (x.status === 'Approved' && x.usedDays ? esc(coUsedDays(x)) : '') + '</div>' + coBadge(x) +
+        (x.status === 'Pending' ? '<button type="button" class="cobtn alt" data-cow="' + esc(x.no) + '">Withdraw</button>' : '') + '</div>'; }).join('')
+      : '<div class="co-empty">No comp-offs yet. When you work ' + min + ' h or more on a Sunday or a holiday, submit the day and claim it here or on that day’s log.</div>') + '</div>';
+    $('coBody').innerHTML = h;
+    Array.prototype.forEach.call($('coBody').querySelectorAll('[data-coc]'), function (b) { b.onclick = function () { coClaim(b.dataset.coc); }; });
+    Array.prototype.forEach.call($('coBody').querySelectorAll('[data-cow]'), function (b) { b.onclick = function () { coWithdraw(b.dataset.cow); }; });
+    $('coRules').innerHTML = 'Work <b>' + min + ' h or more</b> on a Sunday or a holiday to earn <b>1 comp-off</b>. Your manager approves it (HR is copied). Use it within <b>' + exp + ' days</b> of the day worked, as a full day or two half days: on the day off, choose <b>Leave / Comp-Off → Comp-Off</b> and pick which comp-off to use.';
   }
 
   var toastTimer;
